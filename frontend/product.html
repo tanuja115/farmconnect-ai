@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Farmer Product Upload</title>
+
+<style>
+body{
+font-family:Arial;
+margin:0;
+background:#f4f4f4;
+}
+
+.nav{
+background:#2e7d32;
+color:white;
+padding:15px;
+text-align:center;
+}
+
+.container{
+padding:20px;
+display:flex;
+justify-content:center;
+}
+
+.card{
+background:white;
+padding:20px;
+border-radius:10px;
+width:350px;
+box-shadow:0px 2px 5px rgba(0,0,0,0.2);
+}
+
+input{
+width:90%;
+padding:10px;
+margin:8px 0;
+}
+
+button{
+padding:10px;
+width:100%;
+background:#2e7d32;
+color:white;
+border:none;
+cursor:pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="nav">
+<h1>🌾 Farmer Product Upload</h1>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<h2>Add New Product</h2>
+
+<input id="product" placeholder="Product Name">
+<input id="price" placeholder="Price per kg">
+<input id="quantity" placeholder="Quantity">
+
+<button onclick="upload()">Upload Product</button>
+
+</div>
+
+</div>
+
+<script>
+
+async function upload(){
+
+let data = {
+product: document.getElementById("product").value,
+price: document.getElementById("price").value,
+quantity: document.getElementById("quantity").value
+}
+
+let response = await fetch(
+"http://127.0.0.1:5000/add-product",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify(data)
+}
+)
+
+let result = await response.json()
+
+alert(result.message)
+
+}
+
+</script>
+
+</body>
+</html>

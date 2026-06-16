@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<style>
+
+body{
+font-family:Arial;
+padding:30px;
+}
+
+.card{
+border:1px solid black;
+padding:15px;
+margin:10px;
+}
+
+button{
+padding:10px;
+background:#2e7d32;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Available Farm Products</h1>
+
+<button onclick="loadProducts()">
+Load Products
+</button>
+
+<div id="products"></div>
+
+<script>
+
+async function loadProducts(){
+
+let response = await fetch("http://127.0.0.1:5000/products")
+
+let products = await response.json()
+
+let output = ""
+
+products.forEach(item => {
+
+output += `
+<div class="card">
+
+<h3>${item.product}</h3>
+
+<p>Price: ₹${item.price}</p>
+
+<p>Quantity: ${item.quantity}</p>
+
+<button onclick="orderProduct('${item.product}')">
+Order
+</button>
+
+</div>
+`
+
+})
+
+document.getElementById("products").innerHTML = output
+
+}
+
+async function orderProduct(product){
+
+await fetch("http://127.0.0.1:5000/order", {
+method: "POST",
+headers: {
+"Content-Type": "application/json"
+},
+body: JSON.stringify({
+product: product
+})
+})
+
+alert("Order Placed")
+
+}
+
+</script>
+
+</body>
+
+</html>

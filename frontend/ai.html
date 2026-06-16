@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>AI Description Generator</title>
+
+<style>
+body{
+font-family:Arial;
+margin:0;
+background:#f4f4f4;
+}
+
+.nav{
+background:#2e7d32;
+color:white;
+padding:15px;
+text-align:center;
+}
+
+.container{
+display:flex;
+justify-content:center;
+padding:30px;
+}
+
+.card{
+background:white;
+padding:25px;
+border-radius:10px;
+width:350px;
+box-shadow:0px 2px 5px rgba(0,0,0,0.2);
+}
+
+input{
+width:90%;
+padding:10px;
+margin:10px 0;
+}
+
+button{
+width:100%;
+padding:10px;
+background:#2e7d32;
+color:white;
+border:none;
+cursor:pointer;
+}
+
+.result{
+margin-top:20px;
+padding:10px;
+background:#f0f0f0;
+border-radius:5px;
+min-height:50px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="nav">
+<h1>🤖 AI Description Generator</h1>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<h2>Generate Product Description</h2>
+
+<input id="product" placeholder="Enter Product (Tomato, Onion)">
+<input id="location" placeholder="Enter Location (Nashik, Pune)">
+
+<button onclick="generate()">Generate</button>
+
+<div id="result" class="result"></div>
+
+</div>
+
+</div>
+
+<script>
+
+async function generate(){
+
+let response = await fetch(
+"http://127.0.0.1:5000/generate-description",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+product: document.getElementById("product").value,
+location: document.getElementById("location").value
+})
+}
+)
+
+let data = await response.json()
+
+document.getElementById("result").innerText =
+data.description
+
+}
+
+</script>
+
+</body>
+</html>

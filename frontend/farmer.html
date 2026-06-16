@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Farmer Dashboard</title>
+
+<style>
+body{
+    font-family: Arial;
+    margin:0;
+    background:#f4f4f4;
+}
+
+.nav{
+    background:#2e7d32;
+    color:white;
+    padding:15px;
+    text-align:center;
+}
+
+.container{
+    padding:20px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+}
+
+input{
+    padding:10px;
+    margin:5px;
+}
+
+button{
+    padding:10px;
+    background:#2e7d32;
+    color:white;
+    border:none;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="nav">
+<h1>Farmer Dashboard</h1>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<h2>Add Product</h2>
+
+<input id="product" placeholder="Product">
+<br><br>
+
+<input id="price" placeholder="Price">
+<br><br>
+
+<input id="quantity" placeholder="Quantity">
+<br><br>
+
+<button onclick="addProduct()">Add</button>
+
+</div>
+
+</div>
+
+<script>
+
+async function addProduct(){
+
+await fetch("http://127.0.0.1:5000/add-product", {
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+product:document.getElementById("product").value,
+price:document.getElementById("price").value,
+quantity:document.getElementById("quantity").value
+})
+})
+
+alert("Product Added")
+
+}
+
+</script>
+
+</body>
+</html>
