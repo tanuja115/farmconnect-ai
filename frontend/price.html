@@ -3,6 +3,8 @@
 
 <head>
 <title>AI Price Prediction</title>
+<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
@@ -85,7 +87,7 @@ font-weight:bold;
 async function predict(){
 
 let response = await fetch(
-"http://127.0.0.1:5000/predict-price",
+"https://todo-api-production-491d.up.railway.app/predict-price",
 {
 method:"POST",
 headers:{

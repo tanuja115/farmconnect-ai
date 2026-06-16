@@ -3,6 +3,8 @@
 <html>
 
 <head>
+<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
@@ -43,7 +45,7 @@ Load Products
 
 async function loadProducts(){
 
-let response = await fetch("http://127.0.0.1:5000/products")
+let response = await fetch("https://todo-api-production-491d.up.railway.app/products")
 
 let products = await response.json()
 
@@ -67,6 +69,8 @@ Order
 </div>
 `
 
+
+
 })
 
 document.getElementById("products").innerHTML = output
@@ -75,7 +79,7 @@ document.getElementById("products").innerHTML = output
 
 async function orderProduct(product){
 
-await fetch("http://127.0.0.1:5000/order", {
+await fetch("https://todo-api-production-491d.up.railway.app/order", {
 method: "POST",
 headers: {
 "Content-Type": "application/json"
@@ -87,9 +91,11 @@ product: product
 
 alert("Order Placed")
 
-}
+} 
+
 
 </script>
+
 
 </body>
 

@@ -3,6 +3,8 @@
 
 <head>
 <title>Farmer Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
@@ -49,6 +51,7 @@ button{
 <div class="nav">
 <h1>Farmer Dashboard</h1>
 </div>
+<div id="loader" class="loader"></div>
 
 <div class="container">
 
@@ -75,7 +78,7 @@ button{
 
 async function addProduct(){
 
-await fetch("http://127.0.0.1:5000/add-product", {
+await fetch("https://todo-api-production-491d.up.railway.app/add-product", {
 method:"POST",
 headers:{
 "Content-Type":"application/json"
@@ -92,6 +95,7 @@ alert("Product Added")
 }
 
 </script>
+
 
 </body>
 </html>

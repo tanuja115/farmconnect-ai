@@ -3,6 +3,8 @@
 
 <head>
 <title>AI Description Generator</title>
+<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
@@ -86,7 +88,7 @@ min-height:50px;
 async function generate(){
 
 let response = await fetch(
-"http://127.0.0.1:5000/generate-description",
+"https://todo-api-production-491d.up.railway.app/generate-description",
 {
 method:"POST",
 headers:{
@@ -106,7 +108,9 @@ data.description
 
 }
 
+
 </script>
+
 
 </body>
 </html>
