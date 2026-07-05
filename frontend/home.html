@@ -2,32 +2,198 @@
 <html>
 
 <head>
+
 <title>FarmConnect AI</title>
-<link rel="stylesheet" href="style.css">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial;
+}
+
+body{
+background:linear-gradient(135deg,#43a047,#1b5e20);
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.container{
+background:white;
+width:90%;
+max-width:900px;
+padding:50px;
+border-radius:20px;
+text-align:center;
+box-shadow:0 10px 30px rgba(0,0,0,.2);
+}
+
+h1{
+font-size:50px;
+color:#2e7d32;
+margin-bottom:15px;
+}
+
+.subtitle{
+color:#555;
+margin-bottom:40px;
+}
+
+.box{
+display:flex;
+gap:30px;
+justify-content:center;
+flex-wrap:wrap;
+}
+
+.card{
+width:300px;
+padding:30px;
+border-radius:15px;
+background:#f8f8f8;
+transition:.3s;
+}
+
+.card:hover{
+transform:translateY(-5px);
+}
+
+.icon{
+font-size:60px;
+}
+
+h2{
+margin:15px;
+}
+
+p{
+color:#666;
+margin-bottom:20px;
+}
+
+button{
+padding:14px 30px;
+border:none;
+border-radius:10px;
+font-size:18px;
+cursor:pointer;
+color:white;
+}
+
+.farmer{
+background:#2e7d32;
+}
+
+.customer{
+background:#1565c0;
+}
+
+button:hover{
+opacity:.9;
+}
+
+</style>
+
 </head>
 
 <body>
 
+<div class="container">
+
 <h1>🌾 FarmConnect AI</h1>
 
-<a href="index.html">Register</a>
+<p class="subtitle">
+Connect Farmers Directly With Customers
+</p>
+
+<div class="box">
+
+<!-- FARMER -->
+
+<div class="card">
+
+<div class="icon">
+👨‍🌾
+</div>
+
+<h2>
+Farmer
+</h2>
+
+<p>
+Register and manage products.
+</p>
+
+<button class="farmer" onclick="farmerLogin()">
+    Login
+</button>
 
 <br><br>
 
-<a href="farmer.html">Farmer Upload</a>
+<button class="farmer" onclick="farmerRegister()">
+    Register
+</button>
+
+</div>
+
+<!-- CUSTOMER -->
+
+<div class="card">
+
+<div class="icon">
+🛒
+</div>
+
+<h2>
+Customer
+</h2>
+
+<p>
+Register first then order.
+</p>
+
+<button class="customer" onclick="customerLogin()">
+    Login
+</button>
 
 <br><br>
 
-<a href="customer.html">Customer</a>
+<button class="customer" onclick="customerRegister()">
+    Register
+</button>
 
-<br><br>
+</div>
 
-<a href="price.html">AI Price Prediction</a>
+</div>
 
-<br><br>
+</div>
 
-<a href="ai.html">AI Description Generator</a>
+<script>
+
+
+function farmerLogin(){
+    window.location.href = "farmer-login.html";
+}
+
+function farmerRegister(){
+    window.location.href = "farmer-register.html";
+}
+
+function customerLogin(){
+    window.location.href = "customer-login.html";
+}
+
+function customerRegister(){
+    window.location.href = "customerRegister.html";
+}
+
+</script>
 
 </body>
 

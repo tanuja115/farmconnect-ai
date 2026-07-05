@@ -1,30 +1,72 @@
 <!DOCTYPE html>
-
 <html>
 
 <head>
-<link rel="stylesheet" href="style.css">
+
+<title>Customer Page</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
 body{
 font-family:Arial;
-padding:30px;
+padding:20px;
+background:#f4f4f4;
+}
+
+h1{
+text-align:center;
+color:#2e7d32;
 }
 
 .card{
-border:1px solid black;
+background:white;
 padding:15px;
 margin:10px;
+border-radius:10px;
+box-shadow:0 2px 5px rgba(0,0,0,.1);
+}
+
+img{
+width:150px;
+border-radius:8px;
+}
+
+input{
+width:90%;
+padding:10px;
+margin-top:10px;
 }
 
 button{
 padding:10px;
+border:none;
+color:white;
+cursor:pointer;
+border-radius:5px;
+margin-top:10px;
+}
+
+.order-btn{
+background:#2e7d32;
+}
+
+.remove-btn{
+background:red;
+margin-left:10px;
+}
+
+.toast{
+visibility:hidden;
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
 background:#2e7d32;
 color:white;
-border:none;
-cursor:pointer;
+padding:10px 20px;
+border-radius:5px;
 }
 
 </style>
@@ -33,70 +75,210 @@ cursor:pointer;
 
 <body>
 
-<h1>Available Farm Products</h1>
+<h1>🌾 Available Farm Products</h1>
 
-<button onclick="loadProducts()">
-Load Products
-</button>
+<button class="order-btn" onclick="loadProducts()">Load Products</button>
 
 <div id="products"></div>
 
+<div id="toast" class="toast"></div>
+
 <script>
 
-async function loadProducts(){
+//
+// 🔥 FLOW CONTROL
+//
+function setStep(step){
+    localStorage.setItem("step", step);
+}
 
-let response = await fetch("https://todo-api-production-491d.up.railway.app/products")
+function getStep(){
+    return localStorage.getItem("step");
+}
 
-let products = await response.json()
+// allow only published stage access
+if(getStep() !== "published" && getStep() !== "customer"){
+    window.location.href = "preview.html";
+}
 
-let output = ""
+setStep("customer");
 
-products.forEach(item => {
+//
+// 🔥 GLOBAL DATA (API)
+//
+let productList = [];
 
-output += `
-<div class="card">
+//
+// 🔥 TOAST
+//
+function showToast(msg){
 
-<h3>${item.product}</h3>
+let t = document.getElementById("toast");
 
-<p>Price: ₹${item.price}</p>
+t.innerText = msg;
+t.style.visibility = "visible";
 
-<p>Quantity: ${item.quantity}</p>
-
-<button onclick="orderProduct('${item.product}')">
-Order
-</button>
-
-</div>
-`
-
-
-
-})
-
-document.getElementById("products").innerHTML = output
+setTimeout(()=>{
+    t.style.visibility = "hidden";
+},2000);
 
 }
 
-async function orderProduct(product){
+//
+// 🚀 LOAD PRODUCTS
+//
+async function loadProducts(){
 
-await fetch("https://todo-api-production-491d.up.railway.app/order", {
-method: "POST",
-headers: {
-"Content-Type": "application/json"
+try{
+
+let res = await fetch(
+"https://todo-api-production-491d.up.railway.app/products"
+);
+
+productList = await res.json();
+
+let output = "";
+
+if(productList.length === 0){
+    output = "<h3>No Products Available</h3>";
+}
+
+productList.forEach(item => {
+
+let id = item._id || item.product;
+
+output += `
+<div class="card" id="card-${id}">
+
+<h2>${item.product}</h2>
+
+<p>₹${item.price}</p>
+<p>Qty: ${item.quantity}</p>
+
+<img src="${item.image || ''}">
+
+<br>
+
+<input id="address-${id}" placeholder="Enter Delivery Address">
+
+<br>
+
+<button class="order-btn" onclick="confirmOrder('${id}')">
+Confirm Order
+</button>
+
+<button class="remove-btn" onclick="removeProduct('${id}')">
+Remove
+</button>
+
+</div>
+`;
+});
+
+document.getElementById("products").innerHTML = output;
+
+}
+catch(error){
+console.log(error);
+showToast("Load failed ❌");
+}
+
+}
+
+//
+// 🚀 CONFIRM ORDER (FLOW CONTROLLED)
+//
+async function confirmOrder(id){
+
+let item = productList.find(
+p => (p._id || p.product) === id
+);
+
+if(!item){
+showToast("Product not found");
+return;
+}
+
+let address = document.getElementById(`address-${id}`).value;
+
+if(!address){
+showToast("Enter address");
+return;
+}
+
+try{
+
+await fetch(
+"https://todo-api-production-491d.up.railway.app/order",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
 },
-body: JSON.stringify({
-product: product
+body:JSON.stringify({
+productId:id,
+product:item.product,
+price:item.price,
+quantity:item.quantity,
+image:item.image,
+address:address,
+status:"PLACED"
 })
-})
+}
+);
 
-alert("Order Placed")
+// save order locally for farmer dashboard
+let orders = JSON.parse(localStorage.getItem("orders") || "[]");
 
-} 
+orders.push({
+productId:id,
+product:item.product,
+status:"PLACED"
+});
 
+localStorage.setItem("orders", JSON.stringify(orders));
+
+showToast("Order Confirmed 🚚");
+
+// move to next step in flow system
+setStep("orders");
+
+setTimeout(()=>{
+window.location.href = "farmerOrders.html";
+},1200);
+
+}
+catch(error){
+console.log(error);
+showToast("Order Failed ❌");
+}
+
+}
+
+//
+// 🚀 REMOVE PRODUCT (UI ONLY SAFE)
+//
+function removeProduct(id){
+
+let card = document.getElementById(`card-${id}`);
+
+if(card){
+card.remove();
+showToast("Product removed");
+}
+
+}
+
+//
+// AUTO LOAD
+//
+loadProducts();
 
 </script>
-
 
 </body>
 
 </html>
+
+
+

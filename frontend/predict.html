@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>AI Price Prediction</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+margin:0;
+padding:20px;
+}
+
+.card{
+background:white;
+max-width:500px;
+margin:auto;
+padding:25px;
+border-radius:15px;
+box-shadow:0px 2px 8px rgba(0,0,0,.2);
+}
+
+h1{
+text-align:center;
+color:#2e7d32;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-top:10px;
+border:1px solid #ccc;
+border-radius:8px;
+box-sizing:border-box;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:15px;
+background:#2e7d32;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-size:16px;
+}
+
+button:hover{
+background:#1b5e20;
+}
+
+.result{
+margin-top:20px;
+padding:15px;
+background:#f1f8e9;
+border-radius:10px;
+text-align:center;
+display:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>💰 AI Price Prediction</h1>
+
+<input id="product" placeholder="Product Name">
+<input id="location" placeholder="Location">
+
+<button onclick="predictPrice()">Predict Price</button>
+
+<div class="result" id="result"></div>
+
+<button onclick="nextStep()" style="background:#1565c0;">
+Next → Preview Product
+</button>
+
+</div>
+
+<script>
+
+//
+// 🔥 FLOW CONTROL
+//
+function setStep(step){
+    localStorage.setItem("step", step);
+}
+
+function getStep(){
+    return localStorage.getItem("step");
+}
+
+// protect page
+if(getStep() !== "predict"){
+    window.location.href = "ai.html";
+}
+
+// load saved product from AI step
+let productData = JSON.parse(localStorage.getItem("product") || "{}");
+
+// auto-fill fields
+if(productData.product){
+    document.getElementById("product").value = productData.product;
+}
+
+if(productData.location){
+    document.getElementById("location").value = productData.location;
+}
+
+//
+// 🚀 PRICE PREDICTION
+//
+async function predictPrice(){
+
+let product = document.getElementById("product").value;
+let location = document.getElementById("location").value;
+
+if(!product || !location){
+alert("Please fill all fields");
+return;
+}
+
+try{
+
+let res = await fetch(
+"https://todo-api-production-491d.up.railway.app/predict-price",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+product:product,
+location:location
+})
+}
+);
+
+let data = await res.json();
+
+let result = document.getElementById("result");
+result.style.display = "block";
+
+result.innerHTML = `
+<h2>Predicted Price</h2>
+<p>🌾 Product: ${data.product}</p>
+<p>📍 Location: ${data.location}</p>
+<p>💰 Price: ₹${data.predicted_price}/kg</p>
+`;
+
+// save into main product object
+productData.product = data.product;
+productData.location = data.location;
+productData.predictedPrice = data.predicted_price;
+
+localStorage.setItem("product", JSON.stringify(productData));
+localStorage.setItem("predictedPrice", data.predicted_price);
+
+setStep("predict");
+
+}
+catch(error){
+alert("Prediction Failed ❌");
+console.log(error);
+}
+
+}
+
+//
+// 👉 NEXT STEP
+//
+function nextStep(){
+
+setStep("preview");
+window.location.href = "preview.html";
+
+}
+
+</script>
+
+</body>
+
+</html>

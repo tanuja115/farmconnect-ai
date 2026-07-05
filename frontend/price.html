@@ -3,10 +3,12 @@
 
 <head>
 <title>AI Price Prediction</title>
-<link rel="stylesheet" href="style.css">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <style>
+
 body{
 font-family:Arial;
 margin:0;
@@ -23,38 +25,58 @@ text-align:center;
 .container{
 display:flex;
 justify-content:center;
-padding:30px;
+padding:40px;
 }
 
 .card{
 background:white;
 padding:25px;
-border-radius:10px;
 width:350px;
-box-shadow:0px 2px 5px rgba(0,0,0,0.2);
+border-radius:12px;
+box-shadow:0 3px 10px rgba(0,0,0,.2);
 }
 
 input{
-width:90%;
-padding:10px;
+width:100%;
+padding:12px;
 margin:10px 0;
+box-sizing:border-box;
 }
 
 button{
 width:100%;
-padding:10px;
+padding:12px;
 background:#2e7d32;
 color:white;
 border:none;
+font-size:16px;
 cursor:pointer;
+border-radius:6px;
+}
+
+button:hover{
+background:#256628;
 }
 
 .result{
 margin-top:20px;
-font-size:20px;
-color:#2e7d32;
+font-size:18px;
 font-weight:bold;
+text-align:center;
 }
+
+.loading{
+color:#ff9800;
+}
+
+.success{
+color:#2e7d32;
+}
+
+.error{
+color:red;
+}
+
 </style>
 
 </head>
@@ -71,12 +93,22 @@ font-weight:bold;
 
 <h2>Predict Crop Price</h2>
 
-<input id="product" placeholder="Enter Product (Tomato, Onion)">
-<input id="location" placeholder="Enter Location (Mumbai, Pune)">
+<input
+id="product"
+placeholder="Tomato">
 
-<button onclick="predict()">Predict Price</button>
+<input
+id="location"
+placeholder="Nagpur">
 
-<div id="result" class="result"></div>
+<button onclick="predict()">
+Predict Price
+</button>
+
+<div
+id="result"
+class="result">
+</div>
 
 </div>
 
@@ -84,9 +116,34 @@ font-weight:bold;
 
 <script>
 
+
 async function predict(){
 
-let response = await fetch(
+const product =
+document.getElementById("product").value.trim()
+
+const location =
+document.getElementById("location").value.trim()
+
+const result =
+document.getElementById("result")
+
+if(!product || !location){
+
+result.innerText =
+"Enter Product and Location"
+
+return
+
+}
+
+result.innerText =
+"Predicting..."
+
+try{
+
+let response =
+await fetch(
 "https://todo-api-production-491d.up.railway.app/predict-price",
 {
 method:"POST",
@@ -94,20 +151,36 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-product: document.getElementById("product").value,
-location: document.getElementById("location").value
+product,
+location
 })
 }
 )
 
-let data = await response.json()
+let data =
+await response.json()
 
-document.getElementById("result").innerText =
-"₹ " + data.predicted_price_per_kg + " per kg"
+result.innerHTML =
+`
+Product: ${data.product}<br>
+Location: ${data.location}<br>
+Predicted Price: ₹${data.predicted_price_per_kg}/kg
+`
+
+}
+
+catch(error){
+
+result.innerText =
+"API Connection Error"
+
+}
 
 }
 
 </script>
 
+
 </body>
+
 </html>

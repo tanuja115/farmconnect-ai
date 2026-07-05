@@ -3,7 +3,7 @@
 
 <head>
 <title>Farmer Dashboard</title>
-<link rel="stylesheet" href="style.css">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -34,13 +34,45 @@ body{
 input{
     padding:10px;
     margin:5px;
+    width:90%;
 }
 
 button{
-    padding:10px;
+    padding:10px 15px;
     background:#2e7d32;
     color:white;
     border:none;
+    cursor:pointer;
+}
+
+.loader {
+  display:none;
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #2e7d32;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.toast {
+  visibility: hidden;
+  min-width: 200px;
+  background-color: #2e7d32;
+  color: white;
+  text-align: center;
+  border-radius: 8px;
+  padding: 12px;
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 </style>
 
@@ -51,7 +83,9 @@ button{
 <div class="nav">
 <h1>Farmer Dashboard</h1>
 </div>
+
 <div id="loader" class="loader"></div>
+<div id="toast" class="toast"></div>
 
 <div class="container">
 
@@ -59,16 +93,12 @@ button{
 
 <h2>Add Product</h2>
 
-<input id="product" placeholder="Product">
-<br><br>
+<input id="product" placeholder="Product"><br><br>
+<input id="price" placeholder="Price"><br><br>
+<input id="quantity" placeholder="Quantity"><br><br>
+<input type="file" id="productImage" accept="image/*"><br><br>
 
-<input id="price" placeholder="Price">
-<br><br>
-
-<input id="quantity" placeholder="Quantity">
-<br><br>
-
-<button onclick="addProduct()">Add</button>
+<button onclick="addProduct()">Add Product</button>
 
 </div>
 
@@ -76,26 +106,103 @@ button{
 
 <script>
 
+//
+// 🔥 FLOW CONTROL SYSTEM
+//
+
+function setStep(step){
+    localStorage.setItem("step", step);
+}
+
+function getStep(){
+    return localStorage.getItem("step");
+}
+
+// protect page
+if(getStep() !== "dashboard"){
+    window.location.href = "farmer.html";
+}
+
+// move from login → dashboard
+setStep("dashboard");
+
+//
+// UI HELPERS
+//
+function showLoader(){
+  document.getElementById("loader").style.display = "block";
+}
+
+function hideLoader(){
+  document.getElementById("loader").style.display = "none";
+}
+
+function showToast(message){
+  let toast = document.getElementById("toast");
+  toast.innerText = message;
+  toast.style.visibility = "visible";
+
+  setTimeout(()=>{
+    toast.style.visibility = "hidden";
+  },2000);
+}
+
+//
+// IMAGE CONVERT
+//
+function toBase64(file){
+  return new Promise((resolve, reject) => {
+    let reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+  });
+}
+
+//
+// 🚀 ADD PRODUCT FLOW FIXED
+//
 async function addProduct(){
 
-await fetch("https://todo-api-production-491d.up.railway.app/add-product", {
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-product:document.getElementById("product").value,
-price:document.getElementById("price").value,
-quantity:document.getElementById("quantity").value
-})
-})
+  showLoader();
 
-alert("Product Added")
+  try {
 
+    let file = document.getElementById("productImage").files[0];
+    let imageBase64 = "";
+
+    if(file){
+      imageBase64 = await toBase64(file);
+    }
+
+    let productData = {
+        product: document.getElementById("product").value,
+        price: document.getElementById("price").value,
+        quantity: document.getElementById("quantity").value,
+        image: imageBase64
+    };
+
+    // save temp product for next steps
+    localStorage.setItem("product", JSON.stringify(productData));
+
+    hideLoader();
+    showToast("Product Saved ✅");
+
+    // 🔥 NEXT STEP IN YOUR FLOW → AI PAGE
+    setStep("ai");
+
+    setTimeout(()=>{
+      window.location.href = "ai.html";
+    },1200);
+
+  } catch(error){
+    hideLoader();
+    showToast("Error ❌");
+    console.log(error);
+  }
 }
 
 </script>
-
 
 </body>
 </html>

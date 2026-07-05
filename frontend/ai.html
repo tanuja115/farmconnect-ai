@@ -1,12 +1,15 @@
 <!DOCTYPE html>
+
 <html>
 
 <head>
+
 <title>AI Description Generator</title>
-<link rel="stylesheet" href="style.css">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
+
 body{
 font-family:Arial;
 margin:0;
@@ -16,46 +19,88 @@ background:#f4f4f4;
 .nav{
 background:#2e7d32;
 color:white;
-padding:15px;
+padding:20px;
 text-align:center;
 }
 
 .container{
-display:flex;
-justify-content:center;
-padding:30px;
-}
 
-.card{
+max-width:700px;
+
+margin:40px auto;
+
 background:white;
-padding:25px;
-border-radius:10px;
-width:350px;
-box-shadow:0px 2px 5px rgba(0,0,0,0.2);
+
+padding:30px;
+
+border-radius:15px;
+
+box-shadow:0 5px 15px rgba(0,0,0,.2);
+
 }
 
 input{
-width:90%;
-padding:10px;
+
+width:100%;
+
+padding:12px;
+
 margin:10px 0;
+
+border:1px solid #ddd;
+
+border-radius:8px;
+
 }
 
 button{
+
 width:100%;
-padding:10px;
+
+padding:14px;
+
 background:#2e7d32;
+
 color:white;
+
 border:none;
+
+border-radius:8px;
+
 cursor:pointer;
+
+margin-top:10px;
+
+}
+
+button:hover{
+
+background:#1b5e20;
+
 }
 
 .result{
+
+display:none;
+
 margin-top:20px;
-padding:10px;
-background:#f0f0f0;
-border-radius:5px;
-min-height:50px;
+
+padding:15px;
+
+background:#e8f5e9;
+
+border-radius:10px;
+
+line-height:1.6;
+
 }
+
+.back{
+
+background:#1565c0;
+
+}
+
 </style>
 
 </head>
@@ -63,54 +108,116 @@ min-height:50px;
 <body>
 
 <div class="nav">
+
 <h1>🤖 AI Description Generator</h1>
+
 </div>
 
 <div class="container">
 
-<div class="card">
+<input
+type="text"
+id="product"
+placeholder="Enter Product Name">
 
-<h2>Generate Product Description</h2>
+<input
+type="text"
+id="type"
+placeholder="Enter Product Type">
 
-<input id="product" placeholder="Enter Product (Tomato, Onion)">
-<input id="location" placeholder="Enter Location (Nashik, Pune)">
+<button
+onclick="generateDescription()">
 
-<button onclick="generate()">Generate</button>
+Generate Description
 
-<div id="result" class="result"></div>
+</button>
+
+<div
+class="result"
+id="output">
 
 </div>
+
+<button
+class="back"
+onclick="goBack()">
+
+Back To Dashboard
+
+</button>
 
 </div>
 
 <script>
 
-async function generate(){
+// Load product from dashboard
+let productData = JSON.parse(localStorage.getItem("product"));
 
-let response = await fetch(
-"https://todo-api-production-491d.up.railway.app/generate-description",
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-product: document.getElementById("product").value,
-location: document.getElementById("location").value
-})
-}
-)
-
-let data = await response.json()
-
-document.getElementById("result").innerText =
-data.description
-
+if(productData){
+    document.getElementById("product").value = productData.product;
 }
 
+async function generateDescription(){
+
+    let product = document.getElementById("product").value.trim();
+    let type = document.getElementById("type").value.trim();
+
+    if(product==="" || type===""){
+        alert("Please fill all fields");
+        return;
+    }
+
+    let description =
+    "🌾 " + product +
+    " is a fresh and high-quality " +
+    type +
+    " supplied directly by farmers. Healthy, reliable and available for customers.";
+
+    document.getElementById("output").style.display="block";
+
+    document.getElementById("output").innerHTML =
+    description +
+    "<br><br><button onclick='saveProduct()'>Save Product</button>";
+
+}
+
+async function saveProduct(){
+
+    productData.description =
+    document.getElementById("output").innerText;
+
+    const response = await fetch("http://localhost:8080/add-product",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            name:productData.product,
+            price:productData.price,
+            quantity:productData.quantity,
+            image:productData.image,
+            description:productData.description
+        })
+    });
+
+    const result = await response.json();
+
+    if(result.success){
+        alert("Product Added Successfully ✅");
+        localStorage.removeItem("product");
+        window.location.href="product.html";
+    }else{
+        alert("Failed to save product");
+    }
+
+}
+
+function goBack(){
+    window.location.href="farmerDashboard.html";
+}
 
 </script>
 
-
 </body>
+
 </html>

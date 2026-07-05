@@ -1,0 +1,42 @@
+<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>FarmConnect AI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}body{background:#f4f8f2}
+nav{background:#2e7d32;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:15px 30px;position:sticky;top:0}
+nav ul{display:flex;list-style:none;gap:25px}nav li{cursor:pointer}nav li:hover{color:#ffeb3b}
+.hero{height:320px;background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.45)),url('https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1400&q=80') center/cover;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.hero h1{font-size:46px}.hero p{margin:12px 0}.hero button{padding:12px 22px;background:#4caf50;border:none;color:#fff;border-radius:8px}
+.sec{padding:35px}.title{text-align:center;color:#2e7d32;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.card{background:#fff;padding:22px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.15);text-align:center}.card:hover{transform:translateY(-5px)}
+.icon{font-size:48px}.btn{margin-top:12px;padding:10px 18px;background:#1565c0;color:#fff;border:none;border-radius:8px}
+footer{background:#1b5e20;color:#fff;text-align:center;padding:20px;margin-top:20px}
+</style></head><body>
+<nav><h2>🌿 FarmConnect AI</h2><ul>
+<li onclick="go('product.html')">Products</li>
+<li onclick="go('customerOrders.html')">My Orders</li>
+<li onclick="go('trackOrder.html')">Track Order</li>
+<li onclick="go('customerProfile.html')">Profile</li>
+<li>Contact</li></ul>
+<div><span id='welcome'></span> <button class='btn' onclick="go('logout.html')">Logout</button></div></nav>
+<section class='hero'><h1>Fresh From Farmers 🌾</h1><p>Buy fresh vegetables, fruits and grains directly from trusted farmers.</p><button onclick="go('product.html')">Shop Now</button></section>
+<section class='sec'><h2 class='title'>Shop by Category</h2><div class='grid'>
+<div class='card'><div class='icon'>🥬</div><h3>Vegetables</h3></div>
+<div class='card'><div class='icon'>🍎</div><h3>Fruits</h3></div>
+<div class='card'><div class='icon'>🌾</div><h3>Grains</h3></div>
+<div class='card'><div class='icon'>🥛</div><h3>Dairy</h3></div></div></section>
+<section class='sec'><h2 class='title'>Quick Services</h2><div class='grid'>
+<div class='card'><div class='icon'>🛍️</div><h3>Browse Products</h3><button class='btn' onclick="go('product.html')">Open</button></div>
+<div class='card'><div class='icon'>📦</div><h3>My Orders</h3><button class='btn' onclick="go('customerOrders.html')">View</button></div>
+<div class='card'><div class='icon'>🚚</div><h3>Track Order</h3><button class='btn' onclick="go('trackOrder.html')">Track</button></div>
+<div class='card'><div class='icon'>👤</div><h3>Profile</h3><button class='btn' onclick="go('customerProfile.html')">Profile</button></div>
+</div></section>
+<section class='sec'><h2 class='title'>Why Choose FarmConnect?</h2><div class='grid'>
+<div class='card'>🌱 Fresh farm produce</div><div class='card'>💰 Fair prices</div><div class='card'>🚚 Fast delivery</div><div class='card'>🤝 Direct from farmers</div></div></section>
+<footer>About | Help | Contact | Privacy Policy<br>© 2026 FarmConnect AI</footer>
+<script>
+let c=JSON.parse(localStorage.getItem('customer'));
+if(c){document.getElementById('welcome').textContent='👤 '+(c.name||'Customer')}
+else{location='customer-register.html'}
+function go(p){location=p}
+</script></body></html>

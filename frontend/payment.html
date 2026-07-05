@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Payment - FarmConnect AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+font-family:Arial;
+background:#f4f4f4;
+margin:0;
+padding:20px;
+}
+
+.card{
+background:white;
+max-width:500px;
+margin:auto;
+padding:25px;
+border-radius:15px;
+box-shadow:0 2px 8px rgba(0,0,0,.2);
+text-align:center;
+}
+
+h1{ color:#2e7d32; }
+
+.option{
+border:1px solid #ddd;
+padding:15px;
+margin:15px 0;
+border-radius:10px;
+cursor:pointer;
+}
+
+.option:hover{ background:#f1f8e9; }
+
+button{
+padding:12px 20px;
+background:#2e7d32;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-size:16px;
+width:100%;
+}
+
+button:hover{ background:#1b5e20; }
+
+#selected{
+color:#2e7d32;
+font-weight:bold;
+margin:15px 0;
+}
+
+#loader{
+display:none;
+color:#ff9800;
+font-weight:bold;
+margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>💳 Payment</h1>
+<p>Select Payment Method</p>
+
+<div class="option" onclick="selectPayment('UPI')">📱 UPI Payment</div>
+<div class="option" onclick="selectPayment('CARD')">💳 Card Payment</div>
+<div class="option" onclick="selectPayment('COD')">💵 Cash On Delivery</div>
+
+<p id="selected">No Payment Method Selected</p>
+
+<div id="loader">⏳ Processing Payment...</div>
+
+<button onclick="payNow()">Pay Now</button>
+
+</div>
+
+<script>
+
+let paymentMethod = "";
+
+// 👉 Get order_id from URL
+const urlParams = new URLSearchParams(window.location.search);
+const orderId = urlParams.get("order_id");
+
+function selectPayment(method){
+    paymentMethod = method;
+    document.getElementById("selected").innerText =
+        "Selected: " + method;
+}
+
+function payNow(){
+
+if(paymentMethod === ""){
+    alert("Please select payment method");
+    return;
+}
+
+if(!orderId){
+    alert("Order ID missing!");
+    return;
+}
+
+let amount = 100;
+
+// ==========================
+// 🟢 UPI PAYMENT (MOBILE ONLY)
+// ==========================
+if(paymentMethod === "UPI"){
+
+    let isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+    if(isMobile){
+
+        let upiUrl =
+        "upi://pay?pa=farmconnect@upi&pn=FarmConnect AI&am=" +
+        amount +
+        "&cu=INR";
+
+        window.location.href = upiUrl;
+
+    } else {
+        alert("UPI works only on Mobile 📱");
+    }
+
+    return;
+}
+
+// ==========================
+// 🟡 CARD PAYMENT (SIMULATED)
+// ==========================
+if(paymentMethod === "CARD"){
+
+    document.getElementById("loader").style.display = "block";
+
+    setTimeout(() => {
+
+        document.getElementById("loader").style.display = "none";
+
+        fetch("http://127.0.0.1:8080/payment", {
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                order_id: orderId,
+                amount: amount,
+                method: "CARD",
+                payment_status: "Paid"
+            })
+        });
+
+        alert("🎉 Card Payment Successful!");
+        window.location.href = "orderSuccess.html";
+
+    }, 2000);
+
+    return;
+}
+
+// ==========================
+// 🟣 CASH ON DELIVERY
+// ==========================
+if(paymentMethod === "COD"){
+
+    fetch("http://127.0.0.1:8080/payment", {
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            order_id: orderId,
+            amount: amount,
+            method: "COD",
+            payment_status: "Pending"
+        })
+    });
+
+    alert("🚚 Order Placed! Pay on Delivery");
+
+    window.location.href = "orderSuccess.html";
+
+    return;
+}
+
+}
+
+</script>
+
+</body>
+</html>

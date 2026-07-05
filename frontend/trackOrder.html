@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Track Order</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#f4f4f4;
+}
+
+.nav{
+background:#1565c0;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.card{
+max-width:500px;
+margin:40px auto;
+background:white;
+padding:25px;
+border-radius:12px;
+box-shadow:0 5px 15px rgba(0,0,0,.2);
+}
+
+h2{
+margin-bottom:20px;
+color:#333;
+text-align:center;
+}
+
+.step{
+padding:15px;
+margin:12px 0;
+background:#ddd;
+border-radius:8px;
+font-weight:bold;
+}
+
+.active{
+background:#4CAF50;
+color:white;
+}
+
+button{
+margin-top:20px;
+padding:12px 20px;
+background:#1565c0;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+button:hover{
+background:#0d47a1;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="nav">
+<h1>🚚 Track Order</h1>
+</div>
+
+<div class="card">
+
+<h2 id="product">Loading...</h2>
+
+<div id="pending" class="step">🟡 Pending</div>
+
+<div id="accepted" class="step">✅ Accepted</div>
+
+<div id="shipped" class="step">🚚 Shipped</div>
+
+<div id="delivered" class="step">📦 Delivered</div>
+
+<button onclick="goBack()">Back</button>
+
+</div>
+
+<script>
+
+function goBack(){
+
+window.location.href="customerDashboard.html";
+
+}
+
+async function track(){
+
+try{
+
+const response=await fetch("/orders");
+
+const orders=await response.json();
+
+if(!orders.length){
+
+document.getElementById("product").innerHTML="No Orders Found";
+
+return;
+
+}
+
+const order=orders[orders.length-1];
+
+document.getElementById("product").innerHTML=
+"Product : "+order.product_name;
+
+document.querySelectorAll(".step").forEach(step=>{
+step.classList.remove("active");
+});
+
+const status=order.status.toUpperCase();
+
+if(status==="PENDING"){
+
+document.getElementById("pending").classList.add("active");
+
+}
+
+else if(status==="ACCEPTED"){
+
+document.getElementById("pending").classList.add("active");
+document.getElementById("accepted").classList.add("active");
+
+}
+
+else if(status==="SHIPPED"){
+
+document.getElementById("pending").classList.add("active");
+document.getElementById("accepted").classList.add("active");
+document.getElementById("shipped").classList.add("active");
+
+}
+
+else if(status==="DELIVERED"){
+
+document.getElementById("pending").classList.add("active");
+document.getElementById("accepted").classList.add("active");
+document.getElementById("shipped").classList.add("active");
+document.getElementById("delivered").classList.add("active");
+
+}
+
+}
+catch(error){
+
+console.log(error);
+
+document.getElementById("product").innerHTML="Unable to Load Order";
+
+}
+
+}
+
+track();
+
+setInterval(track,5000);
+
+</script>
+
+</body>
+
+</html>

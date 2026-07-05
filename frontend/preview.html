@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Preview Product</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+margin:0;
+padding:20px;
+}
+
+.card{
+background:white;
+max-width:600px;
+margin:auto;
+padding:25px;
+border-radius:15px;
+box-shadow:0px 2px 8px rgba(0,0,0,.2);
+}
+
+h1{
+text-align:center;
+color:#2e7d32;
+}
+
+.preview-box{
+background:#f1f8e9;
+padding:15px;
+border-radius:10px;
+margin-top:15px;
+}
+
+img{
+width:100%;
+max-height:250px;
+object-fit:cover;
+border-radius:10px;
+margin-top:10px;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:20px;
+background:#2e7d32;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-size:16px;
+}
+
+button:hover{
+background:#1b5e20;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>👀 Product Preview</h1>
+
+<div class="preview-box">
+
+<h3>🌾 Product: <span id="product"></span></h3>
+
+<p>🤖 Description: <span id="description"></span></p>
+
+<p>💰 Price: ₹<span id="price"></span></p>
+
+<img id="image" src="" alt="Product Image">
+
+</div>
+
+<button onclick="publishProduct()">✅ Publish Product</button>
+
+</div>
+
+<script>
+
+//
+// 🔥 FLOW CONTROL
+//
+function setStep(step){
+    localStorage.setItem("step", step);
+}
+
+function getStep(){
+    return localStorage.getItem("step");
+}
+
+// protect page
+if(getStep() !== "preview"){
+    window.location.href = "predict.html";
+}
+
+//
+// 🔥 LOAD FULL PRODUCT OBJECT (MAIN FIX)
+//
+let product = JSON.parse(localStorage.getItem("product") || "{}");
+
+document.getElementById("product").innerText =
+product.product || "N/A";
+
+document.getElementById("description").innerText =
+product.description || "No description generated";
+
+document.getElementById("price").innerText =
+product.predictedPrice || "0";
+
+document.getElementById("image").src =
+product.image || "https://via.placeholder.com/400x250";
+
+//
+// 🚀 PUBLISH PRODUCT (FINAL STEP)
+//
+async function publishProduct(){
+
+setStep("published");
+
+// get existing product list
+let allProducts = JSON.parse(localStorage.getItem("products") || "[]");
+
+// push final product
+allProducts.push(product);
+
+// save to local storage (mock DB)
+localStorage.setItem("products", JSON.stringify(allProducts));
+
+alert("✅ Product Published Successfully");
+
+// move to customer page
+window.location.href = "customer.html";
+
+}
+
+</script>
+
+</body>
+
+</html>

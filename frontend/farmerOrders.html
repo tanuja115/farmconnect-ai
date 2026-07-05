@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Farmer Orders Dashboard</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+padding:20px;
+margin:0;
+}
+
+.nav{
+background:#2e7d32;
+color:white;
+padding:20px;
+border-radius:10px;
+text-align:center;
+}
+
+button{
+padding:10px 14px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+color:white;
+margin:5px;
+}
+
+.refresh{background:#1565c0;}
+.accept{background:#2e7d32;}
+.reject{background:#d32f2f;}
+.ship{background:#ff9800;}
+.deliver{background:#4caf50;}
+
+.card{
+background:white;
+padding:20px;
+margin-top:20px;
+border-radius:10px;
+box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+
+.status{
+padding:6px 10px;
+background:#ff9800;
+color:white;
+border-radius:5px;
+font-weight:bold;
+}
+
+img{
+width:150px;
+border-radius:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="nav">
+<h1>📦 Farmer Orders Dashboard</h1>
+</div>
+
+<br>
+
+<button class="refresh" onclick="loadOrders()">🔄 Refresh Orders</button>
+
+<div id="orders"></div>
+
+<script>
+
+// =====================
+// LOAD ORDERS
+// =====================
+async function loadOrders(){
+
+    const ordersDiv = document.getElementById("orders");
+    ordersDiv.innerHTML = "<h3>Loading Orders...</h3>";
+
+    try{
+
+        const res = await fetch("http://localhost:8080/orders");
+
+        if(!res.ok){
+            throw new Error("Server Error");
+        }
+
+        const orders = await res.json();
+
+        if(orders.length === 0){
+            ordersDiv.innerHTML = "<h3>No Orders Yet</h3>";
+            return;
+        }
+
+        let output = "";
+
+        orders.forEach(order => {
+
+            output += `
+            <div class="card">
+
+                <h2>🌾 ${order.product_name}</h2>
+
+                <p><b>Customer:</b> ${order.customer_name}</p>
+
+                <p><b>Mobile:</b> ${order.mobile}</p>
+
+                <p><b>Quantity:</b> ${order.quantity}</p>
+
+                <p><b>Total Price:</b> ₹${order.total_price}</p>
+
+                <p><b>Address:</b><br>${order.address}</p>
+
+                <p>
+                    <b>Status:</b>
+                    <span class="status" id="status-${order.id}">
+                        ${order.status}
+                    </span>
+                </p>
+
+                <button class="accept"
+                    onclick="updateStatus(${order.id},'Accepted')">
+                    Accept
+                </button>
+
+                <button class="reject"
+                    onclick="updateStatus(${order.id},'Rejected')">
+                    Reject
+                </button>
+
+                <button class="ship"
+                    onclick="updateStatus(${order.id},'Shipped')">
+                    Shipped
+                </button>
+
+                <button class="deliver"
+                    onclick="markDelivered(${order.id})">
+                    Delivered
+                </button>
+
+            </div>
+            `;
+        });
+
+        ordersDiv.innerHTML = output;
+
+    }catch(error){
+
+        console.log(error);
+
+        ordersDiv.innerHTML = `
+        <div class="card">
+            <h3>❌ Unable to Load Orders</h3>
+        </div>`;
+    }
+}
+
+
+// =====================
+// UPDATE STATUS (Accept / Reject / Ship)
+// =====================
+async function updateStatus(id, status){
+
+    try{
+
+        const res = await fetch(
+            "http://localhost:8080/update-order/" + id,
+            {
+                method:"PUT",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    status:status
+                })
+            }
+        );
+
+        const data = await res.json();
+
+        if(data.success){
+
+            document.getElementById("status-"+id).innerText = status;
+
+            alert("✅ Status Updated: " + status);
+
+        }else{
+            alert(data.message || "Update Failed");
+        }
+
+    }catch(error){
+        console.log(error);
+        alert("❌ Update Failed");
+    }
+}
+
+
+// =====================
+// DELIVERED → PAYMENT TRIGGER
+// =====================
+async function markDelivered(id){
+
+    try{
+
+        const res = await fetch(
+            "http://localhost:8080/update-order/" + id,
+            {
+                method:"PUT",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    status:"Delivered"
+                })
+            }
+        );
+
+        const data = await res.json();
+
+        if(data.success){
+
+            document.getElementById("status-"+id).innerText = "Delivered";
+
+            alert("🚚 Order Delivered Successfully");
+
+            // 👉 Redirect to payment page
+            window.location.href =
+            "payment.html?order_id=" + id;
+
+        }else{
+            alert(data.message || "Delivery Failed");
+        }
+
+    }catch(error){
+        console.log(error);
+        alert("❌ Delivery Failed");
+    }
+}
+
+
+// Auto refresh orders every 5 sec
+loadOrders();
+setInterval(loadOrders, 5000);
+
+</script>
+
+</body>
+
+</html>
+

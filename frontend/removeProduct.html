@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-<title>Products</title>
+
+<title>Remove Products</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 
 body{
-margin:0;
 font-family:Arial;
 background:#f4f4f4;
+margin:0;
 }
 
 .nav{
-background:#1565c0;
+background:#d32f2f;
 color:white;
 padding:20px;
 text-align:center;
@@ -36,21 +36,22 @@ box-shadow:0 2px 8px rgba(0,0,0,.2);
 text-align:center;
 }
 
-img{
-width:100%;
-height:180px;
-object-fit:cover;
-border-radius:10px;
-}
-
 button{
-padding:12px;
-border:none;
-background:#2e7d32;
+padding:10px 20px;
+background:#d32f2f;
 color:white;
+border:none;
 border-radius:8px;
 cursor:pointer;
-width:100%;
+}
+
+button:hover{
+background:#b71c1c;
+}
+
+.back{
+background:#2e7d32;
+margin:20px;
 }
 
 </style>
@@ -60,50 +61,45 @@ width:100%;
 <body>
 
 <div class="nav">
-<h1>🛒 Products</h1>
+<h1>❌ Remove Products</h1>
 </div>
 
 <div class="container" id="products">
 Loading...
 </div>
 
+<center>
+<button class="back" onclick="history.back()">
+⬅ Back
+</button>
+</center>
+
 <script>
 
 async function loadProducts(){
 
-const container=document.getElementById("products");
-
-try{
-
 const res=await fetch("http://localhost:8080/products");
 
-const data=await res.json();
+const products=await res.json();
 
-if(data.length===0){
-container.innerHTML="<h2>No Products Available</h2>";
-return;
-}
+let html="";
 
-let output="";
+products.forEach(product=>{
 
-data.forEach(product=>{
-
-output+=`
+html+=`
 
 <div class="card">
-
-<img src="${product.image || 'https://via.placeholder.com/250'}">
 
 <h2>${product.name}</h2>
 
 <p><b>₹${product.price}</b></p>
 
-<p>Quantity : ${product.quantity} kg</p>
+<p>${product.quantity} kg</p>
 
 <p>${product.description || ""}</p>
 
-<button onclick='buyProduct(${JSON.stringify(product)})'>
-Buy Now
+<button onclick="removeProduct(${product.id})">
+Remove Product
 </button>
 
 </div>
@@ -112,27 +108,34 @@ Buy Now
 
 });
 
-container.innerHTML=output;
-
-}
-catch(error){
-
-console.log(error);
-
-container.innerHTML="<h2>Failed to Load Products</h2>";
+document.getElementById("products").innerHTML=html;
 
 }
 
+async function removeProduct(id){
+
+if(!confirm("Are you sure?")) return;
+
+const res=await fetch(
+"http://localhost:8080/delete-product/"+id,
+{
+method:"DELETE"
 }
-
-function buyProduct(product){
-
-localStorage.setItem(
-"selectedProduct",
-JSON.stringify(product)
 );
 
-window.location.href="farmerOrders.html";
+const result=await res.json();
+
+if(result.success){
+
+alert("Product Removed Successfully");
+
+loadProducts();
+
+}else{
+
+alert(result.message);
+
+}
 
 }
 
@@ -141,6 +144,4 @@ loadProducts();
 </script>
 
 </body>
-
 </html>
-

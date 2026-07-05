@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Farmer Registration</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+margin:0;
+padding:30px;
+}
+
+.container{
+
+max-width:500px;
+
+margin:auto;
+
+background:white;
+
+padding:30px;
+
+border-radius:15px;
+
+box-shadow:0 5px 15px rgba(0,0,0,.2);
+
+}
+
+h2{
+text-align:center;
+color:#2e7d32;
+margin-bottom:20px;
+}
+
+input{
+
+width:100%;
+
+padding:12px;
+
+margin:10px 0;
+
+border:1px solid #ddd;
+
+border-radius:8px;
+
+}
+
+button{
+
+width:100%;
+
+padding:14px;
+
+background:#2e7d32;
+
+color:white;
+
+border:none;
+
+border-radius:8px;
+
+cursor:pointer;
+
+}
+
+button:hover{
+background:#1b5e20;
+}
+
+#success{
+
+display:none;
+
+text-align:center;
+
+margin-top:15px;
+
+color:green;
+
+font-weight:bold;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>👨‍🌾 Farmer Registration</h2>
+
+<form id="farmerForm">
+
+<input
+type="text"
+id="name"
+placeholder="Farmer Name"
+required>
+
+<input
+type="text"
+id="mobile"
+placeholder="Mobile Number"
+required>
+
+<input
+type="text"
+id="village"
+placeholder="Village"
+required>
+
+<input
+type="email"
+id="email"
+placeholder="Email"
+required>
+
+<input
+type="password"
+id="password"
+placeholder="Password"
+required>
+
+<button type="submit">
+
+Register
+
+</button>
+
+</form>
+
+<div id="success">
+
+Registration Successful ✅
+
+</div>
+
+</div>
+
+<script>
+
+
+document
+.getElementById("farmerForm")
+.addEventListener(
+"submit",
+
+function(e){
+
+e.preventDefault();
+
+// collect values
+
+let farmer={
+
+name:
+document.getElementById("name").value,
+
+mobile:
+document.getElementById("mobile").value,
+
+village:
+document.getElementById("village").value,
+
+email: document.getElementById("email").value,
+
+password: document.getElementById("password").value
+
+};
+
+// save farmer
+
+localStorage.setItem(
+"farmer",
+JSON.stringify(farmer)
+);
+
+// save flow
+
+localStorage.setItem(
+"step",
+"dashboard"
+);
+
+// show success
+
+document
+.getElementById("success")
+.style.display=
+"block";
+
+// redirect to dashboard
+
+setTimeout(function(){
+
+location.replace(
+"farmerDashboard.html"
+);
+
+},1500);
+
+});
+
+
+
+</script>
+
+</body>
+
+</html>

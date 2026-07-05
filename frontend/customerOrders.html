@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>My Orders</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+background:#f2f5f9;
+}
+
+.nav{
+background:#1565c0;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.back{
+margin:20px;
+padding:12px 20px;
+background:#2e7d32;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+.container{
+padding:20px;
+max-width:900px;
+margin:auto;
+}
+
+.card{
+background:white;
+border-radius:15px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 4px 12px rgba(0,0,0,.15);
+}
+
+.title{
+font-size:22px;
+color:#2e7d32;
+margin-bottom:10px;
+}
+
+.info{
+margin:6px 0;
+font-size:16px;
+}
+
+/* STATUS STYLE */
+.status{
+display:inline-block;
+padding:8px 16px;
+border-radius:20px;
+color:white;
+font-weight:bold;
+margin-top:10px;
+}
+
+/* COLORS */
+.PENDING{background:#ff9800;}
+.ACCEPTED{background:#4caf50;}
+.REJECTED{background:#d32f2f;}
+.SHIPPED{background:#2196f3;}
+.DELIVERED{background:#009688;}
+.PACKED{background:#9c27b0;}
+.OUT_FOR_DELIVERY{background:#ff5722;}
+
+.empty{
+text-align:center;
+font-size:20px;
+margin-top:80px;
+color:gray;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="nav">
+<h1>📦 My Orders</h1>
+<p>Live Order Tracking</p>
+</div>
+
+<button class="back" onclick="history.back()">⬅ Back</button>
+
+<div id="orders" class="container">
+<div class="empty">Loading Orders...</div>
+</div>
+
+<script>
+
+async function loadOrders(){
+
+try{
+
+let res = await fetch("http://127.0.0.1:8080/orders");
+let orders = await res.json();
+
+let container = document.getElementById("orders");
+
+if(!orders || orders.length === 0){
+container.innerHTML = "<div class='empty'>No Orders Found</div>";
+return;
+}
+
+let html = "";
+
+// LOOP ORDERS
+orders.forEach(order => {
+
+// SAFE STATUS (IMPORTANT FIX)
+let status = (order.status || "PENDING")
+.toUpperCase()
+.trim()
+.replace(/ /g, "_");
+
+html += `
+<div class="card">
+
+<h2 class="title">🌾 ${order.product}</h2>
+
+<p class="info"><b>Order ID:</b> ${order.id}</p>
+<p class="info"><b>Quantity:</b> ${order.quantity || 1}</p>
+<p class="info"><b>Total Price:</b> ₹${order.total_price || 0}</p>
+
+<span class="status ${status}">
+${order.status}
+</span>
+
+</div>
+`;
+
+});
+
+container.innerHTML = html;
+
+}catch(error){
+
+console.log(error);
+document.getElementById("orders").innerHTML =
+"<div class='empty'>Failed to load orders</div>";
+
+}
+
+}
+
+// INITIAL LOAD
+loadOrders();
+
+// LIVE UPDATE EVERY 5 SEC
+setInterval(loadOrders, 5000);
+
+</script>
+
+</body>
+</html>
+
