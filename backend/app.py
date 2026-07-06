@@ -1,19 +1,21 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from flask_cors import CORS
-import mysql.connector
+import sqlite3
 import os
 
 app = Flask(__name__)
 app.secret_key = "farmconnect123"
 CORS(app)
 
-# ---------------- MYSQL CONNECTION ----------------
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Tanuja@1234",
-    database="farmconnect"
-)
+# ------------------ SQLITE CONNECTION ------------------
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DATABASE_PATH = os.path.join(BASE_DIR, 'farmconnect.db')
+
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 
 # ---------------- HOME ----------------
 from flask import send_from_directory
@@ -36,36 +38,32 @@ def frontend_files(filename):
 
 
 # ---------------- REGISTER ----------------
-# ---------------- REGISTER ----------------
 @app.route("/register", methods=["POST"])
 def register():
-
     data = request.json
-    cursor = db.cursor(dictionary=True)
+    
+    db = get_db_connection()
+    cursor = db.cursor()
 
     # Check if email already exists
     cursor.execute(
-        "SELECT * FROM users WHERE email=%s",
+        "SELECT * FROM users WHERE email=?",
         (data["email"],)
     )
-
     user = cursor.fetchone()
 
     if user:
         cursor.close()
+        db.close()
         return jsonify({
             "success": False,
-            "message": "You are already registered. Please login."
+            "message": "You are already registered."
         })
 
-    cursor.close()
-
     # Register new user
-    cursor = db.cursor()
-
     cursor.execute("""
-        INSERT INTO users(name,email,password)
-        VALUES(%s,%s,%s)
+        INSERT INTO users(name, email, password)
+        VALUES(?, ?, ?)
     """, (
         data["name"],
         data["email"],
@@ -74,6 +72,7 @@ def register():
 
     db.commit()
     cursor.close()
+    db.close()
 
     return jsonify({
         "success": True,
@@ -81,16 +80,17 @@ def register():
     })
 
 
+# ---------------- LOGIN ----------------
 @app.route("/login", methods=["POST"])
 def login():
-
     data = request.json
 
-    cursor = db.cursor(dictionary=True)
+    db = get_db_connection()
+    cursor = db.cursor()
 
     cursor.execute("""
         SELECT * FROM users
-        WHERE email=%s AND password=%s
+        WHERE email=? AND password=?
     """, (
         data["email"],
         data["password"]
@@ -98,9 +98,9 @@ def login():
 
     user = cursor.fetchone()
     cursor.close()
+    db.close()
 
     if user:
-
         session["user_id"] = user["id"]
         session["user_name"] = user["name"]
 
@@ -115,34 +115,32 @@ def login():
         "message": "Invalid Email or Password"
     })
 
+
 # ---------------- FARMER REGISTER ----------------
 @app.route("/farmer-register", methods=["POST"])
 def farmer_register():
-
     data = request.json
-    cursor = db.cursor(dictionary=True)
+    
+    db = get_db_connection()
+    cursor = db.cursor()
 
     cursor.execute(
-        "SELECT * FROM farmers WHERE email=%s",
+        "SELECT * FROM farmers WHERE email=?",
         (data["email"],)
     )
-
     farmer = cursor.fetchone()
 
     if farmer:
         cursor.close()
+        db.close()
         return jsonify({
             "success": False,
             "message": "Farmer already registered. Please login."
         })
 
-    cursor.close()
-
-    cursor = db.cursor()
-
     cursor.execute("""
-        INSERT INTO farmers(name,mobile,email,password)
-        VALUES(%s,%s,%s,%s)
+        INSERT INTO farmers(name, mobile, email, password)
+        VALUES(?, ?, ?, ?)
     """, (
         data["name"],
         data["mobile"],
@@ -152,6 +150,7 @@ def farmer_register():
 
     db.commit()
     cursor.close()
+    db.close()
 
     return jsonify({
         "success": True,
@@ -162,26 +161,24 @@ def farmer_register():
 # ---------------- FARMER LOGIN ----------------
 @app.route("/farmer-login", methods=["POST"])
 def farmer_login():
-
     data = request.json
 
-    cursor = db.cursor(dictionary=True)
+    db = get_db_connection()
+    cursor = db.cursor()
 
     cursor.execute("""
-        SELECT *
-        FROM farmers
-        WHERE email=%s AND password=%s
+        SELECT * FROM farmers
+        WHERE email=? AND password=?
     """, (
         data["email"],
         data["password"]
     ))
 
     farmer = cursor.fetchone()
-
     cursor.close()
+    db.close()
 
     if farmer:
-
         session["farmer_id"] = farmer["id"]
         session["farmer_name"] = farmer["name"]
 
@@ -196,10 +193,12 @@ def farmer_login():
         "message": "Invalid Email or Password"
     })
 
+
 # ---------------- GET PRODUCTS ----------------
 @app.route("/products")
 def products():
-    cursor = db.cursor(dictionary=True)
+    db = get_db_connection()
+    cursor = db.cursor()
 
     cursor.execute("""
         SELECT id, product_name AS name, quantity, price, image, description
@@ -207,8 +206,12 @@ def products():
         ORDER BY id DESC
     """)
 
-    data = cursor.fetchall()
+    rows = cursor.fetchall()
+    # Convert Row objects to dict elements for jsonify
+    data = [dict(row) for row in rows]
+    
     cursor.close()
+    db.close()
 
     return jsonify(data)
 
@@ -216,11 +219,13 @@ def products():
 # ---------------- DELETE PRODUCT ----------------
 @app.route("/delete-product/<int:id>", methods=["DELETE"])
 def delete_product(id):
+    db = get_db_connection()
     cursor = db.cursor()
 
-    cursor.execute("DELETE FROM products WHERE id=%s", (id,))
+    cursor.execute("DELETE FROM products WHERE id=?", (id,))
     db.commit()
     cursor.close()
+    db.close()
 
     return jsonify({"success": True})
 
@@ -230,6 +235,7 @@ def delete_product(id):
 def order():
     try:
         data = request.json
+        db = get_db_connection()
         cursor = db.cursor()
 
         total = float(data["price"]) * float(data["quantity"])
@@ -237,7 +243,7 @@ def order():
         cursor.execute("""
             INSERT INTO orders
             (product_name, customer_name, mobile, address, quantity, total_price, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             data["product"],
             data["customer_name"],
@@ -250,6 +256,7 @@ def order():
 
         db.commit()
         cursor.close()
+        db.close()
 
         return jsonify({"success": True, "message": "Order Placed Successfully"})
 
@@ -260,15 +267,19 @@ def order():
 # ---------------- GET ALL ORDERS (ADMIN) ----------------
 @app.route("/orders")
 def get_orders():
-    cursor = db.cursor(dictionary=True)
+    db = get_db_connection()
+    cursor = db.cursor()
 
     cursor.execute("""
         SELECT * FROM orders
         ORDER BY id DESC
     """)
 
-    data = cursor.fetchall()
+    rows = cursor.fetchall()
+    data = [dict(row) for row in rows]
+    
     cursor.close()
+    db.close()
 
     return jsonify(data)
 
@@ -278,16 +289,18 @@ def get_orders():
 def update_order(order_id):
     try:
         data = request.json
+        db = get_db_connection()
         cursor = db.cursor()
 
         cursor.execute("""
             UPDATE orders
-            SET status=%s
-            WHERE id=%s
+            SET status=?
+            WHERE id=?
         """, (data["status"], order_id))
 
         db.commit()
         cursor.close()
+        db.close()
 
         return jsonify({"success": True, "message": "Status Updated"})
 
@@ -307,17 +320,19 @@ def payment():
         if not order_id or not method:
             return jsonify({"status": "error", "message": "Missing data"})
 
+        db = get_db_connection()
         cursor = db.cursor()
 
         cursor.execute("""
             UPDATE orders
-            SET payment_method=%s,
+            SET payment_method=?,
                 payment_status='Paid'
-            WHERE id=%s
+            WHERE id=?
         """, (method, order_id))
 
         db.commit()
         cursor.close()
+        db.close()
 
         return jsonify({"status": "success", "message": "Payment successful"})
 
@@ -328,7 +343,8 @@ def payment():
 # ---------------- DASHBOARD STATS ----------------
 @app.route("/dashboard-stats")
 def dashboard_stats():
-    cursor = db.cursor(dictionary=True)
+    db = get_db_connection()
+    cursor = db.cursor()
 
     cursor.execute("SELECT COUNT(*) AS total FROM products")
     total_products = cursor.fetchone()["total"]
@@ -342,14 +358,16 @@ def dashboard_stats():
     cursor.execute("SELECT COUNT(*) AS total FROM orders WHERE status='Delivered'")
     delivered_orders = cursor.fetchone()["total"]
 
+    # Handled standard SQLite alternate syntax for IFNULL
     cursor.execute("""
-        SELECT IFNULL(SUM(total_price),0) AS sales
+        SELECT COALESCE(SUM(total_price), 0) AS sales
         FROM orders
         WHERE status='Delivered'
     """)
     total_sales = cursor.fetchone()["sales"]
 
     cursor.close()
+    db.close()
 
     return jsonify({
         "totalProducts": total_products,
@@ -363,12 +381,14 @@ def dashboard_stats():
 # ---------------- ORDER STATUS ----------------
 @app.route('/order-status/<int:order_id>')
 def order_status(order_id):
-    cursor = db.cursor(dictionary=True)
+    db = get_db_connection()
+    cursor = db.cursor()
 
-    cursor.execute("SELECT status FROM orders WHERE id=%s", (order_id,))
+    cursor.execute("SELECT status FROM orders WHERE id=?", (order_id,))
     result = cursor.fetchone()
 
     cursor.close()
+    db.close()
 
     if result:
         return jsonify({"status": result["status"]})
@@ -381,19 +401,16 @@ def order_status(order_id):
 def customer_orders():
     return send_from_directory(FRONTEND_FOLDER, "customerOrders.html")
 
- 
+
 @app.route("/farmer-dashboard")
 def farmer_dashboard():
-
     if "farmer_id" not in session:
         return redirect("/farmer-login.html")
 
     return send_from_directory(FRONTEND_FOLDER, "farmerDashboard.html")
 
 
-
 # ---------------- RUN APP ----------------
-
 @app.route("/logout")
 def logout():
     session.clear()
@@ -401,7 +418,6 @@ def logout():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-
     app.run(
         host="0.0.0.0",
         port=port,
