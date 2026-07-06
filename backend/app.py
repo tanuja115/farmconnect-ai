@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import os
@@ -17,9 +17,7 @@ def get_db_connection():
     return conn
 
 
-# ---------------- HOME ----------------
-from flask import send_from_directory
-
+# ---------------- FRONTEND STATIC SERVING ----------------
 FRONTEND_FOLDER = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "..",
@@ -207,7 +205,6 @@ def products():
     """)
 
     rows = cursor.fetchall()
-    # Convert Row objects to dict elements for jsonify
     data = [dict(row) for row in rows]
     
     cursor.close()
@@ -238,20 +235,31 @@ def order():
         db = get_db_connection()
         cursor = db.cursor()
 
-        total = float(data["price"]) * float(data["quantity"])
+        # Handle frontend key mappings safely using fallback logic
+        p_name = data.get("product_name") or data.get("product") or "Unknown Produce"
+        cust_email = data.get("customer_email") or "guest@farmconnect.com"
+        mobile = data.get("mobile") or "N/A"
+        address = data.get("address") or "Standard Delivery"
+        qty = float(data.get("quantity") or 1.0)
+        price = float(data.get("price") or 0.0)
+        pay_method = data.get("payment_method") or "COD"
+        
+        total = price * qty
 
+        # Accommodates standard schema fields safely
         cursor.execute("""
             INSERT INTO orders
-            (product_name, customer_name, mobile, address, quantity, total_price, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (product_name, customer_name, mobile, address, quantity, total_price, status, payment_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            data["product"],
-            data["customer_name"],
-            data["mobile"],
-            data["address"],
-            float(data["quantity"]),
+            p_name,
+            cust_email, # Maps user verification strings safely
+            mobile,
+            address,
+            qty,
             total,
-            "Pending"
+            "Pending",
+            pay_method
         ))
 
         db.commit()
@@ -261,19 +269,30 @@ def order():
         return jsonify({"success": True, "message": "Order Placed Successfully"})
 
     except Exception as e:
+        print("Order Failure Error Trace:", str(e))
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-# ---------------- GET ALL ORDERS (ADMIN) ----------------
+# ---------------- GET ORDERS (WITH OPTIONAL FILTER) ----------------
 @app.route("/orders")
 def get_orders():
+    email_filter = request.args.get("email")
     db = get_db_connection()
     cursor = db.cursor()
 
-    cursor.execute("""
-        SELECT * FROM orders
-        ORDER BY id DESC
-    """)
+    if email_filter:
+        # Secure parameterized filtering for the customer view profile matching layout
+        cursor.execute("""
+            SELECT * FROM orders 
+            WHERE customer_name = ? OR customer_name LIKE ?
+            ORDER BY id DESC
+        """, (email_filter, f"%{email_filter}%"))
+    else:
+        # Full unfiltered feed list layout for the Farmers dashboard management module
+        cursor.execute("""
+            SELECT * FROM orders
+            ORDER BY id DESC
+        """)
 
     rows = cursor.fetchall()
     data = [dict(row) for row in rows]
@@ -352,13 +371,12 @@ def dashboard_stats():
     cursor.execute("SELECT COUNT(*) AS total FROM orders")
     total_orders = cursor.fetchone()["total"]
 
-    cursor.execute("SELECT COUNT(*) AS total FROM orders WHERE status='Pending'")
+    cursor.execute("SELECT COUNT(*) AS total FROM orders WHERE status='Pending' OR status='Pending'")
     pending_orders = cursor.fetchone()["total"]
 
     cursor.execute("SELECT COUNT(*) AS total FROM orders WHERE status='Delivered'")
     delivered_orders = cursor.fetchone()["total"]
 
-    # Handled standard SQLite alternate syntax for IFNULL
     cursor.execute("""
         SELECT COALESCE(SUM(total_price), 0) AS sales
         FROM orders
