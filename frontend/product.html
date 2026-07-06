@@ -73,11 +73,23 @@ async function loadProducts(){
     const container = document.getElementById("products");
 
     try {
-        // Updated to use a relative path instead of localhost
+        // Fetch data using relative path
         const res = await fetch("/products");
-        const data = await res.json();
+        
+        // Check if server returned a bad status code (e.g., 404 or 500)
+        if (!res.ok) {
+            throw new Error(`Server returned status: ${res.status}`);
+        }
 
-        if(data.length === 0){
+        let data;
+        try {
+            data = await res.json();
+        } catch (jsonError) {
+            throw new Error("Failed to parse product data from server.");
+        }
+
+        // Validate that data is an array
+        if (!Array.isArray(data) || data.length === 0){
             container.innerHTML = "<h2>No Products Available</h2>";
             return;
         }
@@ -85,13 +97,20 @@ async function loadProducts(){
         let output = "";
 
         data.forEach(product => {
+            // Safe fallback properties to protect against missing database fields
+            const pImage = product.image || 'https://via.placeholder.com/250';
+            const pName = product.name || 'Unnamed Product';
+            const pPrice = product.price !== undefined ? product.price : '0';
+            const pQty = product.quantity !== undefined ? product.quantity : '0';
+            const pDesc = product.description || "";
+
             output += `
             <div class="card">
-                <img src="${product.image || 'https://via.placeholder.com/250'}">
-                <h2>${product.name}</h2>
-                <p><b>₹${product.price}</b></p>
-                <p>Quantity : ${product.quantity} kg</p>
-                <p>${product.description || ""}</p>
+                <img src="${pImage}" alt="${pName}">
+                <h2>${pName}</h2>
+                <p><b>₹${pPrice}</b></p>
+                <p>Quantity : ${pQty} kg</p>
+                <p>${pDesc}</p>
                 <button onclick='buyProduct(${JSON.stringify(product)})'>
                     Buy Now
                 </button>
@@ -102,17 +121,32 @@ async function loadProducts(){
         container.innerHTML = output;
 
     } catch(error) {
-        console.log(error);
-        container.innerHTML = "<h2>Failed to Load Products</h2>";
+        console.error("Product Loading Error:", error);
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; color: #c62828;">
+                <h2>Unable to Load Products</h2>
+                <p>${error.message || "Please check your server connection and try again."}</p>
+            </div>
+        `;
     }
 }
 
 function buyProduct(product){
-    localStorage.setItem("selectedProduct", JSON.stringify(product));
-    // Fixed destination: Customers go to placeOrder.html to finalize checkout
-    window.location.href = "placeOrder.html";
+    if (!product) {
+        alert("Error selecting product. Please try again.");
+        return;
+    }
+    
+    try {
+        localStorage.setItem("selectedProduct", JSON.stringify(product));
+        window.location.href = "placeOrder.html";
+    } catch (storageError) {
+        console.error("Local Storage Error:", storageError);
+        alert("Could not process choice. Please ensure cookies/local storage are enabled.");
+    }
 }
 
+// Initialize on page load
 loadProducts();
 
 </script>
