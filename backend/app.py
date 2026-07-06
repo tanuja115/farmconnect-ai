@@ -193,24 +193,35 @@ def farmer_login():
 
 
 # ---------------- GET PRODUCTS ----------------
-@app.route("/products")
-def products():
-    db = get_db_connection()
-    cursor = db.cursor()
+# ---------------- ADD PRODUCT (NEW ROUTE) ----------------
+@app.route("/add-product", methods=["POST"])
+def add_product():
+    try:
+        data = request.json
+        db = get_db_connection()
+        cursor = db.cursor()
 
-    cursor.execute("""
-        SELECT id, product_name AS name, quantity, price, image, description
-        FROM products
-        ORDER BY id DESC
-    """)
+        # Extract values with safe property keys matching your database column definitions
+        product_name = data.get("name") or "Unknown Produce"
+        price = float(data.get("price") or 0.0)
+        quantity = float(data.get("quantity") or 1.0)
+        image = data.get("image") or "default.jpg"
+        description = data.get("description") or ""
 
-    rows = cursor.fetchall()
-    data = [dict(row) for row in rows]
-    
-    cursor.close()
-    db.close()
+        cursor.execute("""
+            INSERT INTO products (product_name, price, quantity, image, description)
+            VALUES (?, ?, ?, ?, ?)
+        """, (product_name, price, quantity, image, description))
 
-    return jsonify(data)
+        db.commit()
+        cursor.close()
+        db.close()
+
+        return jsonify({"success": True, "message": "Product Saved Successfully"})
+
+    except Exception as e:
+        print("Product Add Failure Error Trace:", str(e))
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # ---------------- DELETE PRODUCT ----------------

@@ -1,15 +1,11 @@
 <!DOCTYPE html>
-
 <html>
 
 <head>
-
-<title>AI Description Generator</title>
-
+<title>AI Description Generator | FarmConnect AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-
 body{
 font-family:Arial;
 margin:0;
@@ -24,141 +20,88 @@ text-align:center;
 }
 
 .container{
-
 max-width:700px;
-
 margin:40px auto;
-
 background:white;
-
 padding:30px;
-
 border-radius:15px;
-
 box-shadow:0 5px 15px rgba(0,0,0,.2);
-
 }
 
 input{
-
 width:100%;
-
 padding:12px;
-
 margin:10px 0;
-
 border:1px solid #ddd;
-
 border-radius:8px;
-
 }
 
 button{
-
 width:100%;
-
 padding:14px;
-
 background:#2e7d32;
-
 color:white;
-
 border:none;
-
 border-radius:8px;
-
 cursor:pointer;
-
 margin-top:10px;
-
+font-weight: bold;
 }
 
 button:hover{
-
 background:#1b5e20;
-
 }
 
 .result{
-
 display:none;
-
 margin-top:20px;
-
 padding:15px;
-
 background:#e8f5e9;
-
 border-radius:10px;
-
 line-height:1.6;
-
 }
 
 .back{
-
 background:#1565c0;
-
 }
-
+.back:hover {
+background:#0d47a1;
+}
 </style>
-
 </head>
 
 <body>
 
 <div class="nav">
-
 <h1>🤖 AI Description Generator</h1>
-
 </div>
 
 <div class="container">
+<input type="text" id="product" placeholder="Enter Product Name">
+<input type="text" id="type" placeholder="Enter Product Type">
 
-<input
-type="text"
-id="product"
-placeholder="Enter Product Name">
+<button onclick="generateDescription()">Generate Description</button>
 
-<input
-type="text"
-id="type"
-placeholder="Enter Product Type">
+<div class="result" id="output"></div>
 
-<button
-onclick="generateDescription()">
-
-Generate Description
-
-</button>
-
-<div
-class="result"
-id="output">
-
-</div>
-
-<button
-class="back"
-onclick="goBack()">
-
-Back To Dashboard
-
-</button>
-
+<button class="back" onclick="goBack()">Back To Dashboard</button>
 </div>
 
 <script>
+// Load product from dashboard context cache safely
+let productData = null;
+try {
+    productData = JSON.parse(localStorage.getItem("product")) || {};
+} catch(e) {
+    console.error("Local storage product index corrupt:", e);
+    productData = {};
+}
 
-// Load product from dashboard
-let productData = JSON.parse(localStorage.getItem("product"));
-
-if(productData){
+if(productData && productData.product){
     document.getElementById("product").value = productData.product;
 }
 
 async function generateDescription(){
-
     let product = document.getElementById("product").value.trim();
     let type = document.getElementById("type").value.trim();
 
@@ -167,57 +110,65 @@ async function generateDescription(){
         return;
     }
 
-    let description =
-    "🌾 " + product +
-    " is a fresh and high-quality " +
-    type +
-    " supplied directly by farmers. Healthy, reliable and available for customers.";
+    let description = "🌾 " + product + " is a fresh and high-quality " + type + " supplied directly by farmers. Healthy, reliable and available for customers.";
 
-    document.getElementById("output").style.display="block";
-
-    document.getElementById("output").innerHTML =
-    description +
-    "<br><br><button onclick='saveProduct()'>Save Product</button>";
-
+    const outputContainer = document.getElementById("output");
+    outputContainer.style.display = "block";
+    
+    // Inject data output layer cleanly preserving click event parameters 
+    outputContainer.innerHTML = `
+        <p id="generatedText">${description}</p>
+        <br>
+        <button onclick="saveProduct()">Save Product</button>
+    `;
 }
 
 async function saveProduct(){
+    const textNode = document.getElementById("generatedText");
+    const dynamicDescription = textNode ? textNode.innerText : "";
 
-    productData.description =
-    document.getElementById("output").innerText;
+    // Fallback assignment to cover instances where users click add directly from sidebar context paths
+    const finalPayload = {
+        name: productData.product || document.getElementById("product").value.trim(),
+        price: productData.price || 0,
+        quantity: productData.quantity || 1,
+        image: productData.image || "default.jpg",
+        description: dynamicDescription
+    };
 
-    const response = await fetch("http://localhost:8080/add-product",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-            name:productData.product,
-            price:productData.price,
-            quantity:productData.quantity,
-            image:productData.image,
-            description:productData.description
-        })
-    });
+    try {
+        // Corrected to absolute relative production path for Render environment stability
+        const response = await fetch("/add-product", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(finalPayload)
+        });
 
-    const result = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP network execution fault: ${response.status}`);
+        }
 
-    if(result.success){
-        alert("Product Added Successfully ✅");
-        localStorage.removeItem("product");
-        window.location.href="product.html";
-    }else{
-        alert("Failed to save product");
+        const result = await response.json();
+
+        if(result.success){
+            alert("Product Added Successfully ✅");
+            localStorage.removeItem("product");
+            window.location.href = "farmerDashboard.html";
+        } else {
+            alert(result.message || "Failed to save product");
+        }
+    } catch(err) {
+        console.error("Critical submission fail on backend endpoint:", err);
+        alert("❌ Network Error: Could not connect to the remote deployment database server.");
     }
-
 }
 
 function goBack(){
     window.location.href="farmerDashboard.html";
 }
-
 </script>
 
 </body>
-
 </html>
