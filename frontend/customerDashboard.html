@@ -35,8 +35,24 @@ footer{background:#1b5e20;color:#fff;text-align:center;padding:20px;margin-top:2
 <div class='card'>🌱 Fresh farm produce</div><div class='card'>💰 Fair prices</div><div class='card'>🚚 Fast delivery</div><div class='card'>🤝 Direct from farmers</div></div></section>
 <footer>About | Help | Contact | Privacy Policy<br>© 2026 FarmConnect AI</footer>
 <script>
-let c=JSON.parse(localStorage.getItem('customer'));
-if(c){document.getElementById('welcome').textContent='👤 '+(c.name||'Customer')}
-else{location='customer-register.html'}
-function go(p){location=p}
+// Retrieve logged-in customer info
+let c = JSON.parse(localStorage.getItem('customer'));
+
+if (c) {
+    document.getElementById('welcome').textContent = '👤 ' + (c.name || 'Customer');
+} else {
+    // If no customer data exists, redirect to login/register page
+    location = 'customer-register.html'; 
+}
+
+function go(p) {
+    // If user clicks logout, send them to the Flask backend route instead of a non-existent .html file
+    if (p === 'logout.html') {
+        localStorage.clear(); // Clear browser storage on signout
+        location = '/logout'; 
+    } else {
+        location = p;
+    }
+}
+
 </script></body></html>

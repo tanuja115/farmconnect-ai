@@ -232,188 +232,112 @@ text-align:center;
 
 </div>
 
-<h1>
-
-Customer Registration
-
-</h1>
-
-<p class="subtitle">
-
-Register to order fresh products directly from farmers
-
-</p>
+<h1>Customer Registration</h1>
+<p class="subtitle">Register to order fresh products directly from farmers</p>
 
 <div class="input-box">
-
-<label>
-
-Full Name
-
-</label>
-
-<input
-id="name"
-placeholder="Enter your name">
-
+    <label>Full Name</label>
+    <input id="name" placeholder="Enter your name">
 </div>
 
 <div class="input-box">
+    <label>Email</label>
+    <input id="email" type="email" placeholder="Enter email">
+</div>
 
-<label>
-
-Email
-
-</label>
-
-<input
-id="email"
-type="email"
-placeholder="Enter email">
-
+<!-- Added Password Input Field to match Backend Requirements -->
+<div class="input-box">
+    <label>Password</label>
+    <input id="password" type="password" placeholder="Create a password">
 </div>
 
 <div class="input-box">
-
-<label>
-
-Mobile Number
-
-</label>
-
-<input
-id="mobile"
-placeholder="Enter mobile number">
-
+    <label>Mobile Number</label>
+    <input id="mobile" placeholder="Enter mobile number">
 </div>
 
 <div class="input-box">
-
-<label>
-
-City
-
-</label>
-
-<input
-id="city"
-placeholder="Enter city">
-
+    <label>City</label>
+    <input id="city" placeholder="Enter city">
 </div>
 
-<button
-onclick="register()">
-
-Continue Shopping →
-
+<button onclick="register()">
+    Continue Shopping →
 </button>
 
-<div
-id="success"
-class="success">
-
-Registration Successful ✅
-
+<div id="success" class="success">
+    Registration Successful ✅
 </div>
 
 <div class="footer">
-
-FarmConnect AI
-
+    FarmConnect AI
 </div>
+
 
 </div>
 
 <script>
-
-function showToast(msg){
-
-let box =
-document.getElementById(
-"success"
-);
-
-box.innerText =
-msg;
-
-box.style.display =
-"block";
-
+function showToast(msg, isSuccess = true){
+    let box = document.getElementById("success");
+    box.innerText = msg;
+    box.style.display = "block";
+    if(!isSuccess) {
+        box.style.background = "#ffebee";
+        box.style.color = "#c62828";
+    } else {
+        box.style.background = "#e8f5e9";
+        box.style.color = "#2e7d32";
+    }
 }
 
 function register(){
+    let name = document.getElementById("name").value.trim();
+    let email = document.getElementById("email").value.trim();
+    let password = document.getElementById("password").value.trim();
+    let mobile = document.getElementById("mobile").value.trim();
+    let city = document.getElementById("city").value.trim();
 
-let name=
-document.getElementById(
-"name"
-).value.trim();
+    if(!name || !email || !password || !mobile || !city){
+        alert("Please fill all fields ❗");
+        return;
+    }
 
-let email=
-document.getElementById(
-"email"
-).value.trim();
+    // Prepare payload matching Flask's expected keys
+    let customerData = {
+        name: name,
+        email: email,
+        password: password
+    };
 
-let mobile=
-document.getElementById(
-"mobile"
-).value.trim();
+    // Make the live API request to your Flask backend
+    fetch("/register", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(customerData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            // Store local session items for UI reference if needed
+            localStorage.setItem("customer", JSON.stringify({name, email, mobile, city}));
+            
+            showToast(data.message, true);
 
-let city=
-document.getElementById(
-"city"
-).value.trim();
-
-if(
-!name||
-!email||
-!mobile||
-!city
-){
-
-alert(
-"Please fill all fields ❗"
-);
-
-return;
-
+            // Redirect to customer dashboard page on success
+            setTimeout(() => {
+                window.location.href = "customerDashboard.html";
+            }, 1500);
+        } else {
+            showToast(data.message, false);
+        }
+    })
+    .catch(err => {
+        console.error("Error:", err);
+        showToast("Server connection error. Please try again.", false);
+    });
 }
-
-let customer={
-
-name,
-email,
-mobile,
-city
-
-};
-
-localStorage.setItem(
-
-"customer",
-
-JSON.stringify(
-customer
-)
-
-);
-
-// SUCCESS MESSAGE
-showToast(
-"Registration Successful ✅"
-);
-
-// REDIRECT TO CUSTOMER PAGE
-setTimeout(()=>{
-
-window.location.href=
-"customerDashboard.html";
-
-},1500);
-
-}
-
-
-
 </script>
 
 </body>
