@@ -188,52 +188,37 @@ def farmer_login():
     })
 
 
-# ---------------- GET PRODUCTS ----------------
-# ---------------- ADD PRODUCT (NEW ROUTE) ----------------
-@app.route("/add-product", methods=["POST"])
-def add_product():
+# ---------------- GET ALL PRODUCTS API ----------------
+@app.route("/products", methods=["GET"])
+def get_products():
     try:
-        data = request.json
         db = get_db_connection()
         cursor = db.cursor()
-
-        # Extract values with safe property keys matching your database column definitions
-        product_name = data.get("name") or "Unknown Produce"
-        price = float(data.get("price") or 0.0)
-        quantity = float(data.get("quantity") or 1.0)
-        image = data.get("image") or "default.jpg"
-        description = data.get("description") or ""
-
-        cursor.execute("""
-            INSERT INTO products (product_name, price, quantity, image, description)
-            VALUES (?, ?, ?, ?, ?)
-        """, (product_name, price, quantity, image, description))
-
-        db.commit()
+        
+        # Pulls column structural records mapping directly to frontend key definitions
+        cursor.execute("SELECT id, product_name, price, quantity, image, description FROM products")
+        rows = cursor.fetchall()
+        
+        products_list = []
+        for row in rows:
+            products_list.append({
+                "id": row[0],
+                "name": row[1],        # Mapped to product.name in product.html
+                "price": row[2],       # Mapped to product.price
+                "quantity": row[3],    # Mapped to product.quantity
+                "image": row[4],       # Mapped to product.image
+                "description": row[5]  # Mapped to product.description
+            })
+            
         cursor.close()
         db.close()
-
-        return jsonify({"success": True, "message": "Product Saved Successfully"})
+        
+        # Returns clean JSON array directly back to loadProducts()
+        return jsonify(products_list)
 
     except Exception as e:
-        print("Product Add Failure Error Trace:", str(e))
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-# ---------------- DELETE PRODUCT ----------------
-@app.route("/delete-product/<int:id>", methods=["DELETE"])
-def delete_product(id):
-    db = get_db_connection()
-    cursor = db.cursor()
-
-    cursor.execute("DELETE FROM products WHERE id=?", (id,))
-    db.commit()
-    cursor.close()
-    db.close()
-
-    return jsonify({"success": True})
-
-
+        print("Database Product Retrieval Error Trace:", str(e))
+        return jsonify({"error": "Internal Server Database Error", "details": str(e)}), 500
 # ---------------- PLACE ORDER ----------------
 @app.route("/order", methods=["POST"])
 def order():
@@ -443,7 +428,7 @@ def frontend_files(filename):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=True)
-    
+
 # ---------------- RUN APP ----------------
 @app.route("/logout")
 def logout():
