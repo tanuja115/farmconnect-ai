@@ -29,10 +29,6 @@ FRONTEND_FOLDER = os.path.join(
 def home():
     return send_from_directory(FRONTEND_FOLDER, "home.html")
 
-# Serve all frontend files automatically
-@app.route("/<path:filename>")
-def frontend_files(filename):
-    return send_from_directory(FRONTEND_FOLDER, filename)
 
 
 # ---------------- REGISTER ----------------
@@ -439,6 +435,15 @@ def farmer_dashboard():
     return send_from_directory(FRONTEND_FOLDER, "farmerDashboard.html")
 
 
+# ---------------- SERVE FRONTEND (MUST BE AT THE BOTTOM) ----------------
+@app.route("/<path:filename>")
+def frontend_files(filename):
+    return send_from_directory(FRONTEND_FOLDER, filename)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=True)
+    
 # ---------------- RUN APP ----------------
 @app.route("/logout")
 def logout():
