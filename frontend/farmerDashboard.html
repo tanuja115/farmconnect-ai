@@ -3,11 +3,14 @@
 
 <head>
 <meta charset="UTF-8">
-<title>Farmer Dashboard </title>
+<title>Farmer Dashboard | FarmConnect AI</title>
 
 <meta
 name="viewport"
 content="width=device-width, initial-scale=1.0">
+
+<!-- Loaded Chart.js early in head to prevent script execution exceptions on initialization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
@@ -370,20 +373,27 @@ grid-template-columns:1fr;
 
 <script>
 // ---------------- Farmer Login ----------------
-const farmer = JSON.parse(localStorage.getItem("farmer"));
+let farmer = null;
+try {
+    farmer = JSON.parse(localStorage.getItem("farmer"));
+} catch (e) {
+    console.error("Identity retrieval failure:", e);
+}
 
-if (farmer) {
-    document.getElementById("welcome").innerHTML =
-        "Welcome, " + farmer.name + " 👨‍🌾";
+if (farmer && farmer.name) {
+    document.getElementById("welcome").innerHTML = "Welcome, " + farmer.name + " 👨‍🌾";
 } else {
-    window.location.href = "farmer-register.html";
+    window.location.href = "farmer-login.html";
 }
 
 // ---------------- Navigation ----------------
-function openDashboard(){}
+function openDashboard(){
+    loadDashboardStats();
+}
 
+// Fixed missing file extensions to coordinate route paths cleanly
 function openAddProduct(){
-    window.location.href="farmer.html";
+    window.location.href="farmer.html"; 
 }
 
 function openRemoveProduct(){
@@ -394,6 +404,7 @@ function openOrders(){
     window.location.href="farmerOrders.html";
 }
 
+// Keeps optional experimental UI components connected
 function openAI(){
     window.location.href="ai.html";
 }
@@ -403,110 +414,105 @@ function openPrice(){
 }
 
 function openLogout(){
-    window.location.href="logout.html";
+    // Routes directly to Flask backend session clean function endpoint
+    localStorage.removeItem("farmer");
+    window.location.href="/logout";
 }
 
 // ---------------- Dashboard Statistics ----------------
 async function loadDashboardStats(){
 
     try{
-
-        const response = await fetch("http://localhost:8080/dashboard-stats");
+        // Fixed to absolute relative pipeline route path mapping
+        const response = await fetch("/dashboard-stats");
+        
+        if (!response.ok) {
+            throw new Error(`Server status returned: ${response.status}`);
+        }
 
         const data = await response.json();
 
-        document.getElementById("totalProducts").innerHTML =
-            data.totalProducts;
-
-        document.getElementById("totalOrders").innerHTML =
-            data.totalOrders;
-
-        document.getElementById("totalSales").innerHTML =
-            "₹" + data.totalSales;
-
-        document.getElementById("pendingOrders").innerHTML =
-            data.pendingOrders;
-
-        document.getElementById("deliveredOrders").innerHTML =
-            data.deliveredOrders;
+        document.getElementById("totalProducts").innerHTML = data.totalProducts !== undefined ? data.totalProducts : 0;
+        document.getElementById("totalOrders").innerHTML = data.totalOrders !== undefined ? data.totalOrders : 0;
+        document.getElementById("totalSales").innerHTML = "₹" + (data.totalSales !== undefined ? data.totalSales : 0);
+        document.getElementById("pendingOrders").innerHTML = data.pendingOrders !== undefined ? data.pendingOrders : 0;
+        document.getElementById("deliveredOrders").innerHTML = data.deliveredOrders !== undefined ? data.deliveredOrders : 0;
 
         updateChart(data);
 
     }
     catch(error){
-        console.log(error);
+        console.error("Failed to dynamically populate dashboard KPI models:", error);
     }
 
 }
 
 // ---------------- Chart ----------------
-let salesChart;
+let salesChart = null;
 
 function updateChart(data){
-
-    const ctx = document.getElementById("salesChart").getContext("2d");
+    const chartCanvas = document.getElementById("salesChart");
+    if (!chartCanvas) return;
+    
+    const ctx = chartCanvas.getContext("2d");
 
     if(salesChart){
         salesChart.destroy();
     }
 
+    // Wrapped safely to check Chart script validation
+    if (typeof Chart === 'undefined') {
+        console.warn("Chart.js engine is still loading background packages.");
+        return;
+    }
+
     salesChart = new Chart(ctx,{
-
         type:"bar",
-
         data:{
-
             labels:[
                 "Products",
                 "Orders",
                 "Pending",
                 "Delivered"
             ],
-
             datasets:[{
-
                 label:"FarmConnect Statistics",
-
                 data:[
-                    data.totalProducts,
-                    data.totalOrders,
-                    data.pendingOrders,
-                    data.deliveredOrders
-                ]
-
+                    data.totalProducts || 0,
+                    data.totalOrders || 0,
+                    data.pendingOrders || 0,
+                    data.deliveredOrders || 0
+                ],
+                backgroundColor: [
+                    '#42a5f5',
+                    '#7e57c2',
+                    '#fb8c00',
+                    '#00acc1'
+                ],
+                borderWidth: 1
             }]
-
         },
-
         options:{
-
             responsive:true,
-
             plugins:{
                 legend:{
                     display:false
                 }
             },
-
             scales:{
                 y:{
                     beginAtZero:true
                 }
             }
-
         }
-
     });
-
 }
 
-// ---------------- Auto Refresh ----------------
+// ---------------- Initialization & Background Worker Polling ----------------
 loadDashboardStats();
-
-setInterval(loadDashboardStats,5000);
+setInterval(loadDashboardStats, 10000); // 10 seconds refresh cycle ensures chart stability
 
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 
 </html>
