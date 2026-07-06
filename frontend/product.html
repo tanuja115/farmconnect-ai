@@ -70,70 +70,47 @@ Loading...
 <script>
 
 async function loadProducts(){
+    const container = document.getElementById("products");
 
-const container=document.getElementById("products");
+    try {
+        // Updated to use a relative path instead of localhost
+        const res = await fetch("/products");
+        const data = await res.json();
 
-try{
+        if(data.length === 0){
+            container.innerHTML = "<h2>No Products Available</h2>";
+            return;
+        }
 
-const res=await fetch("http://localhost:8080/products");
+        let output = "";
 
-const data=await res.json();
+        data.forEach(product => {
+            output += `
+            <div class="card">
+                <img src="${product.image || 'https://via.placeholder.com/250'}">
+                <h2>${product.name}</h2>
+                <p><b>₹${product.price}</b></p>
+                <p>Quantity : ${product.quantity} kg</p>
+                <p>${product.description || ""}</p>
+                <button onclick='buyProduct(${JSON.stringify(product)})'>
+                    Buy Now
+                </button>
+            </div>
+            `;
+        });
 
-if(data.length===0){
-container.innerHTML="<h2>No Products Available</h2>";
-return;
-}
+        container.innerHTML = output;
 
-let output="";
-
-data.forEach(product=>{
-
-output+=`
-
-<div class="card">
-
-<img src="${product.image || 'https://via.placeholder.com/250'}">
-
-<h2>${product.name}</h2>
-
-<p><b>₹${product.price}</b></p>
-
-<p>Quantity : ${product.quantity} kg</p>
-
-<p>${product.description || ""}</p>
-
-<button onclick='buyProduct(${JSON.stringify(product)})'>
-Buy Now
-</button>
-
-</div>
-
-`;
-
-});
-
-container.innerHTML=output;
-
-}
-catch(error){
-
-console.log(error);
-
-container.innerHTML="<h2>Failed to Load Products</h2>";
-
-}
-
+    } catch(error) {
+        console.log(error);
+        container.innerHTML = "<h2>Failed to Load Products</h2>";
+    }
 }
 
 function buyProduct(product){
-
-localStorage.setItem(
-"selectedProduct",
-JSON.stringify(product)
-);
-
-window.location.href="farmerOrders.html";
-
+    localStorage.setItem("selectedProduct", JSON.stringify(product));
+    // Fixed destination: Customers go to placeOrder.html to finalize checkout
+    window.location.href = "placeOrder.html";
 }
 
 loadProducts();
