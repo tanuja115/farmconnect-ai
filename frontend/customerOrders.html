@@ -2,7 +2,7 @@
 <html>
 
 <head>
-<title>My Orders</title>
+<title>My Orders | FarmConnect AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -97,7 +97,7 @@ color:gray;
 <p>Live Order Tracking</p>
 </div>
 
-<button class="back" onclick="history.back()">⬅ Back</button>
+<button class="back" onclick="window.location.href='customerDashboard.html'">⬅ Back to Dashboard</button>
 
 <div id="orders" class="container">
 <div class="empty">Loading Orders...</div>
@@ -106,65 +106,75 @@ color:gray;
 <script>
 
 async function loadOrders(){
+    const container = document.getElementById("orders");
+    
+    // Safely retrieve the logged in customer's identity context
+    let customer = null;
+    try {
+        customer = JSON.parse(localStorage.getItem("customer"));
+    } catch(e) {
+        console.error("Failed to parse identity profile context storage token", e);
+    }
 
-try{
+    if (!customer || !customer.email) {
+        container.innerHTML = "<div class='empty'>Please log in to view your account orders.</div>";
+        return;
+    }
 
-let res = await fetch("http://127.0.0.1:8080/orders");
-let orders = await res.json();
+    try {
+        // Updated to use relative path and passes customer email filter parameter to the backend route
+        const res = await fetch(`/orders?email=${encodeURIComponent(customer.email)}`);
+        
+        if (!res.ok) {
+            throw new Error(`Server status returned: ${res.status}`);
+        }
 
-let container = document.getElementById("orders");
+        const orders = await res.json();
 
-if(!orders || orders.length === 0){
-container.innerHTML = "<div class='empty'>No Orders Found</div>";
-return;
+        if(!orders || orders.length === 0){
+            container.innerHTML = "<div class='empty'>No Orders Found</div>";
+            return;
+        }
+
+        let html = "";
+
+        // Loop orders safely mapping layout structures
+        orders.forEach(order => {
+            const statusStr = order.status || "PENDING";
+            const normalizedStatusClass = statusStr.toUpperCase().trim().replace(/ /g, "_");
+            
+            // Map parameters securely pointing to your database record definitions
+            const productName = order.product_name || order.product || "Produce Item";
+            const orderId = order.id || "N/A";
+            const orderQty = order.quantity || 1;
+            const totalPrice = order.total_price || order.price || 0;
+
+            html += `
+            <div class="card">
+                <h2 class="title">🌾 ${productName}</h2>
+                <p class="info"><b>Order ID:</b> ${orderId}</p>
+                <p class="info"><b>Quantity:</b> ${orderQty} kg</p>
+                <p class="info"><b>Total Price:</b> ₹${totalPrice}</p>
+                <span class="status ${normalizedStatusClass}">
+                    ${statusStr}
+                </span>
+            </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+    } catch(error){
+        console.error("Order history fetch cycle execution failure:", error);
+        container.innerHTML = "<div class='empty'>Connection error. Failed to dynamically retrieve order lists.</div>";
+    }
 }
 
-let html = "";
-
-// LOOP ORDERS
-orders.forEach(order => {
-
-// SAFE STATUS (IMPORTANT FIX)
-let status = (order.status || "PENDING")
-.toUpperCase()
-.trim()
-.replace(/ /g, "_");
-
-html += `
-<div class="card">
-
-<h2 class="title">🌾 ${order.product}</h2>
-
-<p class="info"><b>Order ID:</b> ${order.id}</p>
-<p class="info"><b>Quantity:</b> ${order.quantity || 1}</p>
-<p class="info"><b>Total Price:</b> ₹${order.total_price || 0}</p>
-
-<span class="status ${status}">
-${order.status}
-</span>
-
-</div>
-`;
-
-});
-
-container.innerHTML = html;
-
-}catch(error){
-
-console.log(error);
-document.getElementById("orders").innerHTML =
-"<div class='empty'>Failed to load orders</div>";
-
-}
-
-}
-
-// INITIAL LOAD
+// INITIAL SEED RUN LOAD
 loadOrders();
 
-// LIVE UPDATE EVERY 5 SEC
-setInterval(loadOrders, 5000);
+// LIVE BACKGROUND STATUS CHECK REFRESH ITERATOR RUNNING SECURELY EVERY 7 SECONDS
+setInterval(loadOrders, 7000);
 
 </script>
 

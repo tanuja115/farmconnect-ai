@@ -2,7 +2,7 @@
 <html>
 
 <head>
-<title>Farmer Orders Dashboard</title>
+<title>Farmer Orders Dashboard | FarmConnect AI</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -30,6 +30,13 @@ border-radius:6px;
 cursor:pointer;
 color:white;
 margin:5px;
+font-weight: bold;
+transition: 0.2s;
+}
+
+button:hover {
+opacity: 0.9;
+transform: scale(1.02);
 }
 
 .refresh{background:#1565c0;}
@@ -81,21 +88,19 @@ border-radius:10px;
 // LOAD ORDERS
 // =====================
 async function loadOrders(){
-
     const ordersDiv = document.getElementById("orders");
-    ordersDiv.innerHTML = "<h3>Loading Orders...</h3>";
 
     try{
-
-        const res = await fetch("http://localhost:8080/orders");
+        // Fixed to relative production URL path
+        const res = await fetch("/orders");
 
         if(!res.ok){
-            throw new Error("Server Error");
+            throw new Error(`Server status: ${res.status}`);
         }
 
         const orders = await res.json();
 
-        if(orders.length === 0){
+        if(!Array.isArray(orders) || orders.length === 0){
             ordersDiv.innerHTML = "<h3>No Orders Yet</h3>";
             return;
         }
@@ -103,49 +108,34 @@ async function loadOrders(){
         let output = "";
 
         orders.forEach(order => {
+            // Protect layout with safe property fallbacks
+            const productName = order.product_name || order.product || "Produce Item";
+            const customerName = order.customer_name || order.customer_email || "Customer";
+            const mobileNum = order.mobile || "N/A";
+            const qty = order.quantity || 1;
+            const totalPrice = order.total_price || order.price || 0;
+            const addressDetails = order.address || "No delivery address specified";
+            const orderStatus = order.status || "PENDING";
 
             output += `
             <div class="card">
-
-                <h2>🌾 ${order.product_name}</h2>
-
-                <p><b>Customer:</b> ${order.customer_name}</p>
-
-                <p><b>Mobile:</b> ${order.mobile}</p>
-
-                <p><b>Quantity:</b> ${order.quantity}</p>
-
-                <p><b>Total Price:</b> ₹${order.total_price}</p>
-
-                <p><b>Address:</b><br>${order.address}</p>
-
+                <h2>🌾 ${productName}</h2>
+                <p><b>Customer:</b> ${customerName}</p>
+                <p><b>Mobile:</b> ${mobileNum}</p>
+                <p><b>Quantity:</b> ${qty} kg</p>
+                <p><b>Total Price:</b> ₹${totalPrice}</p>
+                <p><b>Address:</b><br>${addressDetails}</p>
                 <p>
                     <b>Status:</b>
                     <span class="status" id="status-${order.id}">
-                        ${order.status}
+                        ${orderStatus}
                     </span>
                 </p>
 
-                <button class="accept"
-                    onclick="updateStatus(${order.id},'Accepted')">
-                    Accept
-                </button>
-
-                <button class="reject"
-                    onclick="updateStatus(${order.id},'Rejected')">
-                    Reject
-                </button>
-
-                <button class="ship"
-                    onclick="updateStatus(${order.id},'Shipped')">
-                    Shipped
-                </button>
-
-                <button class="deliver"
-                    onclick="markDelivered(${order.id})">
-                    Delivered
-                </button>
-
+                <button class="accept" onclick="updateStatus(${order.id}, 'Accepted')">Accept</button>
+                <button class="reject" onclick="updateStatus(${order.id}, 'Rejected')">Reject</button>
+                <button class="ship" onclick="updateStatus(${order.id}, 'Shipped')">Shipped</button>
+                <button class="deliver" onclick="updateStatus(${order.id}, 'Delivered')">Delivered</button>
             </div>
             `;
         });
@@ -153,106 +143,66 @@ async function loadOrders(){
         ordersDiv.innerHTML = output;
 
     }catch(error){
-
-        console.log(error);
-
+        console.error("Error loading orders:", error);
         ordersDiv.innerHTML = `
-        <div class="card">
+        <div class="card" style="border-left: 5px solid #d32f2f;">
             <h3>❌ Unable to Load Orders</h3>
+            <p>Please check your network and server connection.</p>
         </div>`;
     }
 }
 
 
 // =====================
-// UPDATE STATUS (Accept / Reject / Ship)
+// UPDATE STATUS (Accept / Reject / Ship / Deliver)
 // =====================
 async function updateStatus(id, status){
+    if (!id) {
+        alert("Invalid Order ID");
+        return;
+    }
 
     try{
+        // Fixed to relative production URL path
+        const res = await fetch(`/update-order/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ status: status })
+        });
 
-        const res = await fetch(
-            "http://localhost:8080/update-order/" + id,
-            {
-                method:"PUT",
-                headers:{
-                    "Content-Type":"application/json"
-                },
-                body:JSON.stringify({
-                    status:status
-                })
-            }
-        );
+        if (!res.ok) {
+            throw new Error(`Server returned status code: ${res.status}`);
+        }
 
         const data = await res.json();
 
         if(data.success){
-
-            document.getElementById("status-"+id).innerText = status;
-
-            alert("✅ Status Updated: " + status);
-
-        }else{
+            const statusLabel = document.getElementById("status-" + id);
+            if (statusLabel) {
+                statusLabel.innerText = status;
+            }
+            alert(`✅ Order Status Updated to: ${status}`);
+            
+            // Re-load the dashboard cleanly to reflect changes
+            loadOrders();
+        } else {
             alert(data.message || "Update Failed");
         }
 
     }catch(error){
-        console.log(error);
-        alert("❌ Update Failed");
+        console.error("Status Update Error:", error);
+        alert("❌ Network Error: Could not update order status.");
     }
 }
 
-
-// =====================
-// DELIVERED → PAYMENT TRIGGER
-// =====================
-async function markDelivered(id){
-
-    try{
-
-        const res = await fetch(
-            "http://localhost:8080/update-order/" + id,
-            {
-                method:"PUT",
-                headers:{
-                    "Content-Type":"application/json"
-                },
-                body:JSON.stringify({
-                    status:"Delivered"
-                })
-            }
-        );
-
-        const data = await res.json();
-
-        if(data.success){
-
-            document.getElementById("status-"+id).innerText = "Delivered";
-
-            alert("🚚 Order Delivered Successfully");
-
-            // 👉 Redirect to payment page
-            window.location.href =
-            "payment.html?order_id=" + id;
-
-        }else{
-            alert(data.message || "Delivery Failed");
-        }
-
-    }catch(error){
-        console.log(error);
-        alert("❌ Delivery Failed");
-    }
-}
-
-
-// Auto refresh orders every 5 sec
+// Auto refresh setup: Initial check, followed by continuous polling cycles
 loadOrders();
-setInterval(loadOrders, 5000);
+const refreshInterval = setInterval(loadOrders, 10000); // 10 seconds is safer for background resource savings
 
 </script>
 
 </body>
-
 </html>
 
