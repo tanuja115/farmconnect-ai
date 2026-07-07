@@ -441,13 +441,11 @@ def get_products():
         cursor.execute("""
             SELECT
                 id,
-                COALESCE(product_name, '') AS name,
-                COALESCE(price, 0) AS price,
-                COALESCE(quantity, 0) AS quantity,
-                COALESCE(image, 'https://via.placeholder.com/250') AS image,
-                COALESCE(description, '') AS description,
-                COALESCE(farmer_name, '') AS farmer_name,
-                COALESCE(location, '') AS location
+                product_name AS name,
+                price,
+                quantity,
+                image,
+                description
             FROM products
             ORDER BY id DESC
         """)
@@ -457,10 +455,9 @@ def get_products():
         cursor.close()
         db.close()
 
-        return jsonify(products), 200
+        return jsonify(products)
 
     except Exception as e:
-        print("Products Error:", e)
         return jsonify({
             "success": False,
             "message": str(e)
