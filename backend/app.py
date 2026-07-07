@@ -215,10 +215,13 @@ def add_product():
 
         db, cursor = get_db_connection()
 
-        print("Executing INSERT...")
+        # Remove emojis from description
+        description = data.get("description", "")
+        description = description.encode("ascii", "ignore").decode()
 
         query = """
-            INSERT INTO products (product_name, price, quantity, image, description)
+            INSERT INTO products
+            (product_name, price, quantity, image, description)
             VALUES (%s, %s, %s, %s, %s)
         """
 
@@ -227,16 +230,12 @@ def add_product():
             float(data.get("price") or 0),
             float(data.get("quantity") or 1),
             data.get("image"),
-            data.get("description")
+            description
         )
-
-        print("Query:", query)
-        print("Values:", values)
 
         cursor.execute(query, values)
 
         db.commit()
-        print("Insert successful")
 
         cursor.close()
         db.close()
@@ -254,7 +253,6 @@ def add_product():
             "success": False,
             "message": str(e)
         }), 500
-
 
 
 # ---------------- TRANSACTIONS & ORDERS ----------------
