@@ -13,27 +13,22 @@ CORS(app)
 # ------------------ HYBRID DATABASE CONNECTION ------------------
 def get_db_connection():
     try:
-        # 1. Try Clever Cloud MySQL first
         conn = mysql.connector.connect(
             host=os.environ.get("DB_HOST"),
             user=os.environ.get("DB_USER"),
             password=os.environ.get("DB_PASSWORD"),
             database=os.environ.get("DB_NAME"),
-            port=int(os.environ.get("DB_PORT", 3306))
+            port=int(os.environ.get("DB_PORT", 3306)),
+            connection_timeout=10
         )
-        # Returns MySQL connection and a cursor that acts like a dictionary
+
+        print("✅ Connected to MySQL successfully")
+
         return conn, conn.cursor(dictionary=True, buffered=True)
-        
-    except Exception:
-        # 2. Fallback to Local SQLite if network blocks MySQL
-        import sqlite3
-        BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-        DATABASE_PATH = os.path.join(BASE_DIR, 'farmconnect.db')
-        
-        conn = sqlite3.connect(DATABASE_PATH)
-        # Forces SQLite to return data using column names, matching MySQL's behavior
-        conn.row_factory = sqlite3.Row
-        return conn, conn.cursor()
+
+    except Exception as e:
+        print("❌ MySQL Connection Error:", e)
+        raise
 
 
 # ---------------- FRONTEND STATIC CONFIG ----------------
