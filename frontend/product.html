@@ -53,6 +53,10 @@ cursor:pointer;
 width:100%;
 }
 
+button:hover{
+background:#1b5e20;
+}
+
 </style>
 
 </head>
@@ -64,89 +68,83 @@ width:100%;
 </div>
 
 <div class="container" id="products">
-Loading...
+Loading Products...
 </div>
 
 <script>
 
 async function loadProducts(){
-    const container = document.getElementById("products");
 
-    try {
-        // Fetch data using relative path
-        const res = await fetch("/products");
-        
-        // Check if server returned a bad status code (e.g., 404 or 500)
-        if (!res.ok) {
-            throw new Error(`Server returned status: ${res.status}`);
+    const container=document.getElementById("products");
+
+    try{
+
+        const res=await fetch("https://farmconnect-ai-1.onrender.com/products");
+
+        if(!res.ok){
+            throw new Error("Server returned status: "+res.status);
         }
 
-        let data;
-        try {
-            data = await res.json();
-        } catch (jsonError) {
-            throw new Error("Failed to parse product data from server.");
-        }
+        const data=await res.json();
 
-        // Validate that data is an array
-        if (!Array.isArray(data) || data.length === 0){
-            container.innerHTML = "<h2>No Products Available</h2>";
+        if(!Array.isArray(data) || data.length===0){
+            container.innerHTML="<h2>No Products Available</h2>";
             return;
         }
 
-        let output = "";
+        let output="";
 
-        data.forEach(product => {
-            // Safe fallback properties to protect against missing database fields
-            const pImage = product.image || 'https://via.placeholder.com/250';
-            const pName = product.name || 'Unnamed Product';
-            const pPrice = product.price !== undefined ? product.price : '0';
-            const pQty = product.quantity !== undefined ? product.quantity : '0';
-            const pDesc = product.description || "";
+        data.forEach(product=>{
 
-            output += `
+            output+=`
             <div class="card">
-                <img src="${pImage}" alt="${pName}">
-                <h2>${pName}</h2>
-                <p><b>₹${pPrice}</b></p>
-                <p>Quantity : ${pQty} kg</p>
-                <p>${pDesc}</p>
+
+                <img src="${product.image || 'https://via.placeholder.com/250'}">
+
+                <h2>${product.name}</h2>
+
+                <p><b>₹${product.price}</b></p>
+
+                <p>Quantity : ${product.quantity} kg</p>
+
+                <p>${product.description}</p>
+
                 <button onclick='buyProduct(${JSON.stringify(product)})'>
                     Buy Now
                 </button>
+
             </div>
             `;
+
         });
 
-        container.innerHTML = output;
+        container.innerHTML=output;
 
-    } catch(error) {
-        console.error("Product Loading Error:", error);
-        container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; color: #c62828;">
-                <h2>Unable to Load Products</h2>
-                <p>${error.message || "Please check your server connection and try again."}</p>
-            </div>
-        `;
     }
+
+    catch(err){
+
+        console.log(err);
+
+        container.innerHTML=`
+        <div style="grid-column:1/-1;text-align:center;color:red">
+            <h2>Unable to Load Products</h2>
+            <p>${err.message}</p>
+        </div>
+        `;
+
+    }
+
 }
 
 function buyProduct(product){
-    if (!product) {
-        alert("Error selecting product. Please try again.");
-        return;
-    }
-    
-    try {
-        localStorage.setItem("selectedProduct", JSON.stringify(product));
-        window.location.href = "placeOrder.html";
-    } catch (storageError) {
-        console.error("Local Storage Error:", storageError);
-        alert("Could not process choice. Please ensure cookies/local storage are enabled.");
-    }
+
+    localStorage.setItem("selectedProduct",JSON.stringify(product));
+
+    window.location.href="payment.html";
+
 }
 
-// Initialize on page load
 loadProducts();
 
 </script>
