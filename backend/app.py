@@ -433,6 +433,39 @@ def logout():
 def frontend_files(filename):
     return send_from_directory(FRONTEND_FOLDER, filename)
 
+@app.route("/products", methods=["GET"])
+def get_products():
+    try:
+        db, cursor = get_db_connection()
+
+        cursor.execute("""
+            SELECT
+                id,
+                COALESCE(product_name, '') AS name,
+                COALESCE(price, 0) AS price,
+                COALESCE(quantity, 0) AS quantity,
+                COALESCE(image, 'https://via.placeholder.com/250') AS image,
+                COALESCE(description, '') AS description,
+                COALESCE(farmer_name, '') AS farmer_name,
+                COALESCE(location, '') AS location
+            FROM products
+            ORDER BY id DESC
+        """)
+
+        products = cursor.fetchall()
+
+        cursor.close()
+        db.close()
+
+        return jsonify(products), 200
+
+    except Exception as e:
+        print("Products Error:", e)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
