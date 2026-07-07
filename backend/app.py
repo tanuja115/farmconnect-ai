@@ -2,14 +2,13 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from flask_cors import CORS
 import os
 import mysql.connector
-from dotenv import load_dotenv  # Add this line
+
 
 app = Flask(__name__)
 app.secret_key = "farmconnect"
 CORS(app)
 
 # Load the keys from your .env file
-load_dotenv()
 # ------------------ MYSQL CONNECTION ------------------
 # ------------------ HYBRID DATABASE CONNECTION ------------------
 def get_db_connection():
