@@ -442,8 +442,8 @@ def get_products():
             SELECT
                 id,
                 product_name AS name,
-                price,
                 quantity,
+                price,
                 image,
                 description
             FROM products
@@ -458,6 +458,9 @@ def get_products():
         return jsonify(products)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+
         return jsonify({
             "success": False,
             "message": str(e)
