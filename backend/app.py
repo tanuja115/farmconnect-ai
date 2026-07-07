@@ -20,7 +20,8 @@ def get_db_connection():
             database=os.environ.get("DB_NAME"),
             port=int(os.environ.get("DB_PORT", 3306)),
             charset="utf8mb4",
-            collation="utf8mb4_unicode_ci"
+            collation="utf8mb4_unicode_ci",
+            use_unicode=True
         )
 
         print("✅ Connected to MySQL successfully")
