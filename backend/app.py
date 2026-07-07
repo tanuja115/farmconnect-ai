@@ -19,7 +19,8 @@ def get_db_connection():
             password=os.environ.get("DB_PASSWORD"),
             database=os.environ.get("DB_NAME"),
             port=int(os.environ.get("DB_PORT", 3306)),
-            connection_timeout=10
+            charset="utf8mb4",
+            collation="utf8mb4_unicode_ci"
         )
 
         print("✅ Connected to MySQL successfully")
@@ -68,6 +69,7 @@ def register():
                 "success": False,
                 "message": "You are already registered."
             })
+            
 
         cursor.execute("""
             INSERT INTO users (name, email, password)
