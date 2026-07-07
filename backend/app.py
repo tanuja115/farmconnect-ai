@@ -2,22 +2,39 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from flask_cors import CORS
 import os
 import mysql.connector
+from dotenv import load_dotenv  # Add this line
 
 app = Flask(__name__)
-app.secret_key = "farmconnect123"
+app.secret_key = "farmconnect"
 CORS(app)
 
+# Load the keys from your .env file
+load_dotenv()
 # ------------------ MYSQL CONNECTION ------------------
+# ------------------ HYBRID DATABASE CONNECTION ------------------
 def get_db_connection():
-    # Looks for production environment parameters on Render; falls back to localhost credentials.
-    conn = mysql.connector.connect(
-        host=os.environ.get("MYSQL_HOST", "localhost"),
-        user=os.environ.get("MYSQL_USER", "root"),
-        password=os.environ.get("MYSQL_PASSWORD", "your_password"),
-        database=os.environ.get("MYSQL_DATABASE", "farmconnect"),
-        port=int(os.environ.get("MYSQL_PORT", 3306))
-    )
-    return conn
+    try:
+        # 1. Try Clever Cloud MySQL first
+        conn = mysql.connector.connect(
+            host=os.environ.get("DB_HOST"),
+            user=os.environ.get("DB_USER"),
+            password=os.environ.get("DB_PASSWORD"),
+            database=os.environ.get("DB_NAME"),
+            port=int(os.environ.get("DB_PORT", 3306))
+        )
+        # Returns MySQL connection and a cursor that acts like a dictionary
+        return conn, conn.cursor(dictionary=True, buffered=True)
+        
+    except Exception:
+        # 2. Fallback to Local SQLite if network blocks MySQL
+        import sqlite3
+        BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+        DATABASE_PATH = os.path.join(BASE_DIR, 'farmconnect.db')
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        # Forces SQLite to return data using column names, matching MySQL's behavior
+        conn.row_factory = sqlite3.Row
+        return conn, conn.cursor()
 
 
 # ---------------- FRONTEND STATIC CONFIG ----------------
@@ -36,119 +53,165 @@ def home():
 # ---------------- CUSTOMER AUTHENTICATION ----------------
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.json
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
+    try:
+        data = request.json or {}
+        email = data.get("email")
+        name = data.get("name")
+        password = data.get("password")
 
-    cursor.execute("SELECT * FROM users WHERE email = %s", (data["email"],))
-    user = cursor.fetchone()
+        if not email or not name or not password:
+            return jsonify({"success": False, "message": "All fields are required."}), 400
 
-    if user:
+        db, cursor = get_db_connection()
+
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+
+        if user:
+            cursor.close()
+            db.close()
+            return jsonify({
+                "success": False,
+                "message": "You are already registered."
+            })
+
+        cursor.execute("""
+            INSERT INTO users (name, email, password)
+            VALUES (%s, %s, %s)
+        """, (name, email, password))
+
+        db.commit()
         cursor.close()
         db.close()
-        return jsonify({
-            "success": False,
-            "message": "You are already registered."
-        })
-
-    cursor.execute("""
-        INSERT INTO users (name, email, password)
-        VALUES (%s, %s, %s)
-    """, (data["name"], data["email"], data["password"]))
-
-    db.commit()
-    cursor.close()
-    db.close()
-    return jsonify({"success": True, "message": "Registration Successful"})
+        return jsonify({"success": True, "message": "Registration Successful"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.json
-    role = data.get("role")  # 'customer' or 'farmer'
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
+    try:
+        data = request.json or {}
+        email = data.get("email")
+        password = data.get("password")
+        role = data.get("role")  # 'customer' or 'farmer'
 
-    table = "farmers" if role == "farmer" else "users"
-    
-    cursor.execute(f"SELECT * FROM {table} WHERE email = %s AND password = %s", (data["email"], data["password"]))
-    account = cursor.fetchone()
+        if not email or not password:
+            return jsonify({"success": False, "message": "Email and password are required."}), 400
 
-    cursor.close()
-    db.close()
+        # --- UPDATED CONNECTION LINE ---
+        db, cursor = get_db_connection()
 
-    if account:
-        return jsonify({
-            "success": True, 
-            "message": "Login successful", 
-            "user": {"name": account["name"], "email": account["email"]}
-        })
-    else:
-        return jsonify({"success": False, "message": "Invalid email or password."})
+        table = "farmers" if role == "farmer" else "users"
+        
+        # --- COMPATIBILITY CHECK FOR SQLITE vs MYSQL PLACEHOLDERS ---
+        # SQLite uses '?', MySQL uses '%s'
+        placeholder = "?" if hasattr(db, 'execute') or type(db).__name__ == 'Connection' else "%s"
+        
+        cursor.execute(f"SELECT * FROM {table} WHERE email = {placeholder} AND password = {placeholder}", (email, password))
+        account = cursor.fetchone()
+
+        cursor.close()
+        db.close()
+
+        if account:
+            # Convert row to a regular dict in case it's an offline SQLite Row object
+            account_dict = dict(account) if not isinstance(account, dict) else account
+            
+            session["loggedin"] = True
+            session["id"] = account_dict.get("id")
+            session["email"] = account_dict.get("email")
+            session["role"] = role
+
+            return jsonify({
+                "success": True, 
+                "message": f"Welcome back, {account_dict.get('name')}!",
+                "user": {"id": account_dict.get("id"), "name": account_dict.get("name"), "email": account_dict.get("email"), "role": role}
+            }), 200
+        else:
+            return jsonify({"success": False, "message": "Incorrect email or password."}), 401
+
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
 
 
 # ---------------- FARMER AUTHENTICATION ----------------
 @app.route("/farmer-register", methods=["POST"])
 def farmer_register():
-    data = request.json
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
+    try:
+        data = request.json or {}
+        name = data.get("name")
+        mobile = data.get("mobile")
+        email = data.get("email")
+        password = data.get("password")
 
-    cursor.execute("SELECT * FROM farmers WHERE email = %s", (data["email"],))
-    farmer = cursor.fetchone()
+        if not name or not mobile or not email or not password:
+            return jsonify({"success": False, "message": "All fields are required."}), 400
 
-    if farmer:
+        db, cursor = get_db_connection()
+
+        cursor.execute("SELECT * FROM farmers WHERE email = %s", (email,))
+        farmer = cursor.fetchone()
+
+        if farmer:
+            cursor.close()
+            db.close()
+            return jsonify({
+                "success": False,
+                "message": "Farmer already registered. Please login."
+            })
+
+        cursor.execute("""
+            INSERT INTO farmers (name, mobile, email, password)
+            VALUES (%s, %s, %s, %s)
+        """, (name, mobile, email, password))
+
+        db.commit()
         cursor.close()
         db.close()
-        return jsonify({
-            "success": False,
-            "message": "Farmer already registered. Please login."
-        })
-
-    cursor.execute("""
-        INSERT INTO farmers (name, mobile, email, password)
-        VALUES (%s, %s, %s, %s)
-    """, (data["name"], data["mobile"], data["email"], data["password"]))
-
-    db.commit()
-    cursor.close()
-    db.close()
-    return jsonify({"success": True, "message": "Farmer Registration Successful"})
+        return jsonify({"success": True, "message": "Farmer Registration Successful"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route("/farmer-login", methods=["POST"])
 def farmer_login():
-    data = request.json
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
+    try:
+        data = request.json or {}
+        email = data.get("email")
+        password = data.get("password")
 
-    cursor.execute("SELECT * FROM farmers WHERE email = %s AND password = %s", (data["email"], data["password"]))
-    farmer = cursor.fetchone()
-    cursor.close()
-    db.close()
+        db, cursor = get_db_connection()
 
-    if farmer:
-        session["farmer_id"] = farmer["id"]
-        session["farmer_name"] = farmer["name"]
+        cursor.execute("SELECT * FROM farmers WHERE email = %s AND password = %s", (email, password))
+        farmer = cursor.fetchone()
+        
+        if farmer:
+            session["farmer_id"] = farmer["id"]
+            session["farmer_name"] = farmer["name"]
+            cursor.close()
+            db.close()
+            return jsonify({
+                "success": True,
+                "message": "Farmer Login Successful",
+                "name": farmer["name"]
+            })
 
+        cursor.close()
+        db.close()
         return jsonify({
-            "success": True,
-            "message": "Farmer Login Successful",
-            "name": farmer["name"]
+            "success": False,
+            "message": "Invalid Email or Password"
         })
-
-    return jsonify({
-        "success": False,
-        "message": "Invalid Email or Password"
-    })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # ---------------- PRODUCT ENGINE ----------------
 @app.route("/products", methods=["GET"])
 def get_products():
     try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
+        db, cursor = get_db_connection()
         
         cursor.execute("SELECT id, product_name, price, quantity, image, description FROM products")
         rows = cursor.fetchall()
@@ -158,8 +221,8 @@ def get_products():
             products_list.append({
                 "id": row["id"],
                 "name": row["product_name"],
-                "price": row["price"],
-                "quantity": row["quantity"],
+                "price": float(row["price"]),
+                "quantity": float(row["quantity"]),
                 "image": row["image"],
                 "description": row["description"]
             })
@@ -174,9 +237,8 @@ def get_products():
 @app.route("/add-product", methods=["POST"])
 def add_product():
     try:
-        data = request.json
-        db = get_db_connection()
-        cursor = db.cursor()
+        data = request.json or {}
+        db, cursor = get_db_connection()
 
         cursor.execute("""
             INSERT INTO products (product_name, price, quantity, image, description)
@@ -201,9 +263,8 @@ def add_product():
 @app.route("/order", methods=["POST"])
 def order():
     try:
-        data = request.json
-        db = get_db_connection()
-        cursor = db.cursor()
+        data = request.json or {}
+        db, cursor = get_db_connection()
 
         p_name = data.get("product_name") or data.get("product") or "Unknown Produce"
         cust_email = data.get("customer_email") or "guest@farmconnect.com"
@@ -216,52 +277,52 @@ def order():
 
         cursor.execute("""
             INSERT INTO orders 
-            (product_name, customer_name, mobile, address, quantity, total_price, status, payment_method)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (p_name, cust_email, mobile, address, qty, total, "Pending", pay_method))
+            (product_name, customer_name, mobile, address, quantity, total_price, status, payment_method, payment_status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (p_name, cust_email, mobile, address, qty, total, "Pending", pay_method, "Unpaid"))
 
         db.commit()
         cursor.close()
         db.close()
         return jsonify({"success": True, "message": "Order Placed Successfully"})
     except Exception as e:
-        print("Order Failure Error Trace:", str(e))
         return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route("/orders")
 def get_orders():
-    email_filter = request.args.get("email")
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
+    try:
+        email_filter = request.args.get("email")
+        db, cursor = get_db_connection()
 
-    if email_filter:
-        cursor.execute("""
-            SELECT * FROM orders 
-            WHERE customer_name = %s OR customer_name LIKE %s
-            ORDER BY id DESC
-        """, (email_filter, f"%{email_filter}%"))
-    else:
-        cursor.execute("SELECT * FROM orders ORDER BY id DESC")
+        if email_filter:
+            cursor.execute("""
+                SELECT * FROM orders 
+                WHERE customer_name = %s OR customer_name LIKE %s
+                ORDER BY id DESC
+            """, (email_filter, f"%{email_filter}%"))
+        else:
+            cursor.execute("SELECT * FROM orders ORDER BY id DESC")
 
-    rows = cursor.fetchall()
-    cursor.close()
-    db.close()
-    return jsonify(rows)
+        rows = cursor.fetchall()
+        cursor.close()
+        db.close()
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/update-order/<int:order_id>", methods=["PUT"])
 def update_order(order_id):
     try:
-        data = request.json
-        db = get_db_connection()
-        cursor = db.cursor()
+        data = request.json or {}
+        db, cursor = get_db_connection()
 
         cursor.execute("""
             UPDATE orders
             SET status = %s
             WHERE id = %s
-        """, (data["status"], order_id))
+        """, (data.get("status"), order_id))
 
         db.commit()
         cursor.close()
@@ -274,15 +335,14 @@ def update_order(order_id):
 @app.route('/payment', methods=['POST'])
 def payment():
     try:
-        data = request.get_json(force=True)
+        data = request.get_json(force=True) or {}
         order_id = data.get("order_id")
         method = data.get("method")
 
         if not order_id or not method:
-            return jsonify({"status": "error", "message": "Missing data"})
+            return jsonify({"status": "error", "message": "Missing data"}), 400
 
-        db = get_db_connection()
-        cursor = db.cursor()
+        db, cursor = get_db_connection()
 
         cursor.execute("""
             UPDATE orders
@@ -296,15 +356,14 @@ def payment():
         db.close()
         return jsonify({"status": "success", "message": "Payment successful"})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # ---------------- BUSINESS METRICS & STATUS ----------------
 @app.route("/dashboard-stats")
 def dashboard_stats():
     try:
-        db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
+        db, cursor = get_db_connection()
 
         cursor.execute("SELECT COUNT(*) AS total FROM products")
         total_products = cursor.fetchone()["total"]
@@ -337,19 +396,21 @@ def dashboard_stats():
 
 @app.route('/order-status/<int:order_id>')
 def order_status(order_id):
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
+    try:
+        db, cursor = get_db_connection()
 
-    cursor.execute("SELECT status FROM orders WHERE id = %s", (order_id,))
-    result = cursor.fetchone()
+        cursor.execute("SELECT status FROM orders WHERE id = %s", (order_id,))
+        result = cursor.fetchone()
 
-    cursor.close()
-    db.close()
+        cursor.close()
+        db.close()
 
-    if result:
-        return jsonify({"status": result["status"]})
-    else:
-        return jsonify({"status": "Not Found"})
+        if result:
+            return jsonify({"status": result["status"]})
+        else:
+            return jsonify({"status": "Not Found"})
+    except Exception as e:
+        return jsonify({"status": "Error", "message": str(e)}), 500
 
 
 # ---------------- NAVIGATION REDIRECTS ----------------
