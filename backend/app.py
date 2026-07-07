@@ -462,6 +462,23 @@ def get_products():
             "success": False,
             "message": str(e)
         }), 500
+    
+
+@app.route("/test-db")
+def test_db():
+    try:
+        db, cursor = get_db_connection()
+
+        cursor.execute("SHOW COLUMNS FROM products")
+        columns = cursor.fetchall()
+
+        cursor.close()
+        db.close()
+
+        return jsonify(columns)
+
+    except Exception as e:
+        return jsonify({"error": str(e)})  
 
 
 if __name__ == "__main__":
