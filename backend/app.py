@@ -202,36 +202,11 @@ def farmer_login():
 
 
 # ---------------- PRODUCT ENGINE ----------------
-@app.route("/products", methods=["GET"])
-def get_products():
-    try:
-        db, cursor = get_db_connection()
-        
-        cursor.execute("SELECT id, product_name, price, quantity, image, description FROM products")
-        rows = cursor.fetchall()
-        
-        products_list = []
-        for row in rows:
-            products_list.append({
-                "id": row["id"],
-                "name": row["product_name"],
-                "price": float(row["price"]),
-                "quantity": float(row["quantity"]),
-                "image": row["image"],
-                "description": row["description"]
-            })
-            
-        cursor.close()
-        db.close()
-        return jsonify(products_list)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/add-product", methods=["POST"])
 def add_product():
     try:
-        data = request.json or {}
+        data = request.get_json(force=True)
+
         db, cursor = get_db_connection()
 
         cursor.execute("""
@@ -239,8 +214,8 @@ def add_product():
             VALUES (%s, %s, %s, %s, %s)
         """, (
             data.get("name"),
-            float(data.get("price") or 0.0),
-            float(data.get("quantity") or 1.0),
+            float(data.get("price") or 0),
+            float(data.get("quantity") or 1),
             data.get("image"),
             data.get("description")
         ))
@@ -248,9 +223,20 @@ def add_product():
         db.commit()
         cursor.close()
         db.close()
-        return jsonify({"success": True, "message": "Product Saved Successfully"})
+
+        return jsonify({
+            "success": True,
+            "message": "Product Saved Successfully"
+        })
+
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 
 # ---------------- TRANSACTIONS & ORDERS ----------------
