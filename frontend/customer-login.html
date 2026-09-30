@@ -15,6 +15,7 @@ display:flex;
 justify-content:center;
 align-items:center;
 height:100vh;
+margin:0;
 }
 
 .box{
@@ -36,6 +37,7 @@ padding:12px;
 margin:10px 0;
 border:1px solid #ccc;
 border-radius:8px;
+box-sizing:border-box;
 }
 
 button{
@@ -75,12 +77,14 @@ text-decoration:none;
 <input
 type="email"
 id="email"
-placeholder="Email">
+placeholder="Email"
+required>
 
 <input
 type="password"
 id="password"
-placeholder="Password">
+placeholder="Password"
+required>
 
 <button onclick="login()">
 Login
@@ -88,7 +92,7 @@ Login
 
 <p>
 New Customer?
-<a href="customerRegister.html">
+<a href="/customerRegister">
 Register
 </a>
 </p>
@@ -98,6 +102,16 @@ Register
 <script>
 
 function login(){
+
+const email = document.getElementById("email").value.trim();
+const password = document.getElementById("password").value;
+
+if(!email || !password){
+
+alert("Please enter email and password.");
+return;
+
+}
 
 fetch("/login",{
 
@@ -109,25 +123,40 @@ headers:{
 
 body:JSON.stringify({
 
-email:document.getElementById("email").value,
-
-password:document.getElementById("password").value
-
-})
+email:email,
+password:password
 
 })
 
-.then(res=>res.json())
+})
 
-.then(data=>{
+.then(res => {
+
+if(!res.ok){
+throw new Error("Login request failed");
+}
+
+return res.json();
+
+})
+
+.then(data => {
 
 alert(data.message);
 
 if(data.success){
 
-window.location.href="products.html";
+window.location.href = "/products";
 
 }
+
+})
+
+.catch(error => {
+
+console.error(error);
+
+alert("Something went wrong during login. Please try again.");
 
 });
 
@@ -137,3 +166,4 @@ window.location.href="products.html";
 
 </body>
 </html>
+

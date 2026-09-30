@@ -1,253 +1,145 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_from_directory
+from flask import Flask, request, jsonify, redirect, session, send_from_directory
 from flask_cors import CORS
-import os
 import mysql.connector
+import os
+import razorpay
 
+
+# =========================================================
+# FLASK CONFIGURATION
+# =========================================================
 
 app = Flask(__name__)
-app.secret_key = "farmconnect"
+
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "farmconnect123"
+)
+
 CORS(app)
 
-# Load the keys from your .env file
-# ------------------ MYSQL CONNECTION ------------------
-# ------------------ HYBRID DATABASE CONNECTION ------------------
-def get_db_connection():
-    try:
-        conn = mysql.connector.connect(
-            host=os.environ.get("DB_HOST"),
-            user=os.environ.get("DB_USER"),
-            password=os.environ.get("DB_PASSWORD"),
-            database=os.environ.get("DB_NAME"),
-            port=int(os.environ.get("DB_PORT", 3306)),
-            charset="utf8mb4",
-            collation="utf8mb4_unicode_ci",
-            use_unicode=True
+
+# =========================================================
+# DATABASE CONNECTION
+# =========================================================
+
+db = mysql.connector.connect(
+    host=os.environ["DB_HOST"],
+    user=os.environ["DB_USER"],
+    password=os.environ["DB_PASSWORD"],
+    database=os.environ["DB_NAME"],
+    port=int(os.environ.get("DB_PORT", 3306))
+)
+
+
+# =========================================================
+# RAZORPAY CONFIGURATION
+# =========================================================
+
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
+
+if not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET:
+    print("WARNING: Razorpay API keys are not configured.")
+
+razorpay_client = None
+
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    razorpay_client = razorpay.Client(
+        auth=(
+            RAZORPAY_KEY_ID,
+            RAZORPAY_KEY_SECRET
         )
-
-        print("✅ Connected to MySQL successfully")
-
-        return conn, conn.cursor(dictionary=True, buffered=True)
-
-    except Exception as e:
-        print("❌ MySQL Connection Error:", e)
-        raise
+    )
 
 
-# ---------------- FRONTEND STATIC CONFIG ----------------
+# =========================================================
+# FRONTEND FOLDER
+# =========================================================
+
 FRONTEND_FOLDER = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "..",
     "frontend"
 )
 
-# Home page route explicitly set ahead of general static asset catchers
+
+# =========================================================
+# HOME PAGE
+# =========================================================
+
 @app.route("/")
 def home():
-    return send_from_directory(FRONTEND_FOLDER, "home.html")
+    return send_from_directory(
+        FRONTEND_FOLDER,
+        "home.html"
+    )
 
 
-# ---------------- CUSTOMER AUTHENTICATION ----------------
+# =========================================================
+# CUSTOMER REGISTRATION
+# =========================================================
+
 @app.route("/register", methods=["POST"])
 def register():
+
     try:
-        data = request.json or {}
-        email = data.get("email")
-        name = data.get("name")
-        password = data.get("password")
+        data = request.get_json()
 
-        if not email or not name or not password:
-            return jsonify({"success": False, "message": "All fields are required."}), 400
-
-        db, cursor = get_db_connection()
-
-        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-        user = cursor.fetchone()
-
-        if user:
-            cursor.close()
-            db.close()
+        if not data:
             return jsonify({
                 "success": False,
-                "message": "You are already registered."
-            })
-            
+                "message": "No data received"
+            }), 400
 
-        cursor.execute("""
-            INSERT INTO users (name, email, password)
-            VALUES (%s, %s, %s)
-        """, (name, email, password))
-
-        db.commit()
-        cursor.close()
-        db.close()
-        return jsonify({"success": True, "message": "Registration Successful"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/login", methods=["POST"])
-def login():
-    try:
-        data = request.json or {}
-        email = data.get("email")
-        password = data.get("password")
-        role = data.get("role")  # 'customer' or 'farmer'
-
-        if not email or not password:
-            return jsonify({"success": False, "message": "Email and password are required."}), 400
-
-        # --- UPDATED CONNECTION LINE ---
-        db, cursor = get_db_connection()
-
-        table = "farmers" if role == "farmer" else "users"
-        
-        # --- COMPATIBILITY CHECK FOR SQLITE vs MYSQL PLACEHOLDERS ---
-        # SQLite uses '?', MySQL uses '%s'
-        placeholder = "?" if hasattr(db, 'execute') or type(db).__name__ == 'Connection' else "%s"
-        
-        cursor.execute(f"SELECT * FROM {table} WHERE email = {placeholder} AND password = {placeholder}", (email, password))
-        account = cursor.fetchone()
-
-        cursor.close()
-        db.close()
-
-        if account:
-            # Convert row to a regular dict in case it's an offline SQLite Row object
-            account_dict = dict(account) if not isinstance(account, dict) else account
-            
-            session["loggedin"] = True
-            session["id"] = account_dict.get("id")
-            session["email"] = account_dict.get("email")
-            session["role"] = role
-
-            return jsonify({
-                "success": True, 
-                "message": f"Welcome back, {account_dict.get('name')}!",
-                "user": {"id": account_dict.get("id"), "name": account_dict.get("name"), "email": account_dict.get("email"), "role": role}
-            }), 200
-        else:
-            return jsonify({"success": False, "message": "Incorrect email or password."}), 401
-
-    except Exception as e:
-        return jsonify({"success": False, "message": f"Server error: {str(e)}"}), 500
-
-
-# ---------------- FARMER AUTHENTICATION ----------------
-@app.route("/farmer-register", methods=["POST"])
-def farmer_register():
-    try:
-        data = request.json or {}
         name = data.get("name")
-        mobile = data.get("mobile")
         email = data.get("email")
         password = data.get("password")
 
-        if not name or not mobile or not email or not password:
-            return jsonify({"success": False, "message": "All fields are required."}), 400
-
-        db, cursor = get_db_connection()
-
-        cursor.execute("SELECT * FROM farmers WHERE email = %s", (email,))
-        farmer = cursor.fetchone()
-
-        if farmer:
-            cursor.close()
-            db.close()
+        if not name or not email or not password:
             return jsonify({
                 "success": False,
-                "message": "Farmer already registered. Please login."
-            })
+                "message": "All fields are required"
+            }), 400
 
-        cursor.execute("""
-            INSERT INTO farmers (name, mobile, email, password)
-            VALUES (%s, %s, %s, %s)
-        """, (name, mobile, email, password))
+        cursor = db.cursor(dictionary=True)
 
-        db.commit()
-        cursor.close()
-        db.close()
-        return jsonify({"success": True, "message": "Farmer Registration Successful"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/farmer-login", methods=["POST"])
-def farmer_login():
-    try:
-        data = request.json or {}
-        email = data.get("email")
-        password = data.get("password")
-
-        db, cursor = get_db_connection()
-
-        cursor.execute("SELECT * FROM farmers WHERE email = %s AND password = %s", (email, password))
-        farmer = cursor.fetchone()
-        
-        if farmer:
-            session["farmer_id"] = farmer["id"]
-            session["farmer_name"] = farmer["name"]
-            cursor.close()
-            db.close()
-            return jsonify({
-                "success": True,
-                "message": "Farmer Login Successful",
-                "name": farmer["name"]
-            })
-
-        cursor.close()
-        db.close()
-        return jsonify({
-            "success": False,
-            "message": "Invalid Email or Password"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-# ---------------- PRODUCT ENGINE ----------------
-@app.route("/add-product", methods=["POST"])
-def add_product():
-    try:
-        data = request.get_json(force=True)
-
-        print("===== ADD PRODUCT =====")
-        print(data)
-
-        db, cursor = get_db_connection()
-
-        # Remove emojis from description
-        description = data.get("description", "")
-        description = description.encode("ascii", "ignore").decode()
-
-        query = """
-            INSERT INTO products
-            (product_name, price, quantity, image, description)
-            VALUES (%s, %s, %s, %s, %s)
-        """
-
-        values = (
-            data.get("name"),
-            float(data.get("price") or 0),
-            float(data.get("quantity") or 1),
-            data.get("image"),
-            description
+        cursor.execute(
+            "SELECT * FROM users WHERE email=%s",
+            (email,)
         )
 
-        cursor.execute(query, values)
+        user = cursor.fetchone()
+        cursor.close()
+
+        if user:
+            return jsonify({
+                "success": False,
+                "message": "You are already registered. Please login."
+            })
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            INSERT INTO users
+            (name, email, password)
+            VALUES
+            (%s, %s, %s)
+        """, (
+            name,
+            email,
+            password
+        ))
 
         db.commit()
-
         cursor.close()
-        db.close()
 
         return jsonify({
             "success": True,
-            "message": "Product Saved Successfully"
+            "message": "Registration Successful"
         })
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
 
         return jsonify({
             "success": False,
@@ -255,188 +147,205 @@ def add_product():
         }), 500
 
 
-# ---------------- TRANSACTIONS & ORDERS ----------------
-@app.route("/order", methods=["POST"])
-def order():
-    try:
-        data = request.json or {}
-        db, cursor = get_db_connection()
+# =========================================================
+# CUSTOMER LOGIN
+# =========================================================
 
-        p_name = data.get("product_name") or data.get("product") or "Unknown Produce"
-        cust_email = data.get("customer_email") or "guest@farmconnect.com"
-        mobile = data.get("mobile") or "N/A"
-        address = data.get("address") or "Standard Delivery"
-        qty = float(data.get("quantity") or 1.0)
-        price = float(data.get("price") or 0.0)
-        pay_method = data.get("payment_method") or "COD"
-        total = price * qty
+@app.route("/login", methods=["POST"])
+def login():
+
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
+
+        email = data.get("email")
+        password = data.get("password")
+
+        cursor = db.cursor(dictionary=True)
 
         cursor.execute("""
-            INSERT INTO orders 
-            (product_name, customer_name, mobile, address, quantity, total_price, status, payment_method, payment_status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (p_name, cust_email, mobile, address, qty, total, "Pending", pay_method, "Unpaid"))
+            SELECT *
+            FROM users
+            WHERE email=%s
+            AND password=%s
+        """, (
+            email,
+            password
+        ))
 
-        db.commit()
+        user = cursor.fetchone()
         cursor.close()
-        db.close()
-        return jsonify({"success": True, "message": "Order Placed Successfully"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
 
+        if user:
 
-@app.route("/orders")
-def get_orders():
-    try:
-        email_filter = request.args.get("email")
-        db, cursor = get_db_connection()
+            session["user_id"] = user["id"]
+            session["user_name"] = user["name"]
 
-        if email_filter:
-            cursor.execute("""
-                SELECT * FROM orders 
-                WHERE customer_name = %s OR customer_name LIKE %s
-                ORDER BY id DESC
-            """, (email_filter, f"%{email_filter}%"))
-        else:
-            cursor.execute("SELECT * FROM orders ORDER BY id DESC")
-
-        rows = cursor.fetchall()
-        cursor.close()
-        db.close()
-        return jsonify(rows)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/update-order/<int:order_id>", methods=["PUT"])
-def update_order(order_id):
-    try:
-        data = request.json or {}
-        db, cursor = get_db_connection()
-
-        cursor.execute("""
-            UPDATE orders
-            SET status = %s
-            WHERE id = %s
-        """, (data.get("status"), order_id))
-
-        db.commit()
-        cursor.close()
-        db.close()
-        return jsonify({"success": True, "message": "Status Updated"})
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route('/payment', methods=['POST'])
-def payment():
-    try:
-        data = request.get_json(force=True) or {}
-        order_id = data.get("order_id")
-        method = data.get("method")
-
-        if not order_id or not method:
-            return jsonify({"status": "error", "message": "Missing data"}), 400
-
-        db, cursor = get_db_connection()
-
-        cursor.execute("""
-            UPDATE orders
-            SET payment_method = %s,
-                payment_status = 'Paid'
-            WHERE id = %s
-        """, (method, order_id))
-
-        db.commit()
-        cursor.close()
-        db.close()
-        return jsonify({"status": "success", "message": "Payment successful"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# ---------------- BUSINESS METRICS & STATUS ----------------
-@app.route("/dashboard-stats")
-def dashboard_stats():
-    try:
-        db, cursor = get_db_connection()
-
-        cursor.execute("SELECT COUNT(*) AS total FROM products")
-        total_products = cursor.fetchone()["total"]
-
-        cursor.execute("SELECT COUNT(*) AS total FROM orders")
-        total_orders = cursor.fetchone()["total"]
-
-        cursor.execute("SELECT COUNT(*) AS total FROM orders WHERE status='Pending'")
-        pending_orders = cursor.fetchone()["total"]
-
-        cursor.execute("SELECT COUNT(*) AS total FROM orders WHERE status='Delivered'")
-        delivered_orders = cursor.fetchone()["total"]
-
-        cursor.execute("SELECT COALESCE(SUM(total_price), 0) AS sales FROM orders WHERE status='Delivered'")
-        total_sales = float(cursor.fetchone()["sales"])
-
-        cursor.close()
-        db.close()
+            return jsonify({
+                "success": True,
+                "message": "Login Successful",
+                "name": user["name"]
+            })
 
         return jsonify({
-            "totalProducts": total_products,
-            "totalOrders": total_orders,
-            "pendingOrders": pending_orders,
-            "deliveredOrders": delivered_orders,
-            "totalSales": total_sales
+            "success": False,
+            "message": "Invalid Email or Password"
         })
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 
-@app.route('/order-status/<int:order_id>')
-def order_status(order_id):
+# =========================================================
+# FARMER REGISTRATION
+# =========================================================
+
+@app.route("/farmer-register", methods=["POST"])
+def farmer_register():
+
     try:
-        db, cursor = get_db_connection()
+        data = request.get_json()
 
-        cursor.execute("SELECT status FROM orders WHERE id = %s", (order_id,))
-        result = cursor.fetchone()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
 
+        name = data.get("name")
+        mobile = data.get("mobile")
+        email = data.get("email")
+        password = data.get("password")
+
+        if not name or not mobile or not email or not password:
+            return jsonify({
+                "success": False,
+                "message": "All fields are required"
+            }), 400
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute(
+            "SELECT * FROM farmers WHERE email=%s",
+            (email,)
+        )
+
+        farmer = cursor.fetchone()
         cursor.close()
-        db.close()
 
-        if result:
-            return jsonify({"status": result["status"]})
-        else:
-            return jsonify({"status": "Not Found"})
+        if farmer:
+            return jsonify({
+                "success": False,
+                "message": "Farmer already registered. Please login."
+            })
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            INSERT INTO farmers
+            (name, mobile, email, password)
+            VALUES
+            (%s, %s, %s, %s)
+        """, (
+            name,
+            mobile,
+            email,
+            password
+        ))
+
+        db.commit()
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Farmer Registration Successful"
+        })
+
     except Exception as e:
-        return jsonify({"status": "Error", "message": str(e)}), 500
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 
-# ---------------- NAVIGATION REDIRECTS ----------------
-@app.route('/customerOrders')
-def customer_orders():
-    return send_from_directory(FRONTEND_FOLDER, "customerOrders.html")
+# =========================================================
+# FARMER LOGIN
+# =========================================================
+
+@app.route("/farmer-login", methods=["POST"])
+def farmer_login():
+
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
+
+        email = data.get("email")
+        password = data.get("password")
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT *
+            FROM farmers
+            WHERE email=%s
+            AND password=%s
+        """, (
+            email,
+            password
+        ))
+
+        farmer = cursor.fetchone()
+        cursor.close()
+
+        if farmer:
+
+            session["farmer_id"] = farmer["id"]
+            session["farmer_name"] = farmer["name"]
+
+            return jsonify({
+                "success": True,
+                "message": "Farmer Login Successful",
+                "name": farmer["name"]
+            })
+
+        return jsonify({
+            "success": False,
+            "message": "Invalid Email or Password"
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 
-@app.route("/farmer-dashboard")
-def farmer_dashboard():
-    if "farmer_id" not in session:
-        return redirect("/farmer-login.html")
-    return send_from_directory(FRONTEND_FOLDER, "farmerDashboard.html")
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/")
-
-
-# ---------------- STATIC ASSET FILE HANDLER (MUST REMAIN AT BOTTOM) ----------------
-@app.route("/<path:filename>")
-def frontend_files(filename):
-    return send_from_directory(FRONTEND_FOLDER, filename)
+# =========================================================
+# PRODUCTS API
+# =========================================================
 
 @app.route("/products", methods=["GET"])
-def get_products():
+def products():
+
     try:
-        db, cursor = get_db_connection()
+
+        cursor = db.cursor(dictionary=True)
 
         cursor.execute("""
             SELECT
@@ -450,40 +359,812 @@ def get_products():
             ORDER BY id DESC
         """)
 
-        products = cursor.fetchall()
-
+        data = cursor.fetchall()
         cursor.close()
-        db.close()
 
-        return jsonify(products)
+        return jsonify(data)
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
 
         return jsonify({
             "success": False,
             "message": str(e)
         }), 500
-    
 
-@app.route("/test-db")
-def test_db():
+
+# =========================================================
+# PRODUCTS PAGE
+# =========================================================
+
+@app.route("/products-page")
+def products_page():
+
+    return send_from_directory(
+        FRONTEND_FOLDER,
+        "products.html"
+    )
+
+
+# =========================================================
+# DELETE PRODUCT
+# =========================================================
+
+@app.route("/delete-product/<int:id>", methods=["DELETE"])
+def delete_product(id):
+
     try:
-        db, cursor = get_db_connection()
 
-        cursor.execute("SHOW COLUMNS FROM products")
-        columns = cursor.fetchall()
+        cursor = db.cursor()
 
+        cursor.execute(
+            "DELETE FROM products WHERE id=%s",
+            (id,)
+        )
+
+        db.commit()
         cursor.close()
-        db.close()
 
-        return jsonify(columns)
+        return jsonify({
+            "success": True,
+            "message": "Product deleted successfully"
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e)})  
 
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# CREATE ORDER
+# =========================================================
+
+@app.route("/order", methods=["POST"])
+def order():
+
+    try:
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No order data received"
+            }), 400
+
+        product = data.get("product")
+        customer_name = data.get("customer_name")
+        mobile = data.get("mobile")
+        address = data.get("address")
+        quantity = data.get("quantity")
+        price = data.get("price")
+
+        if (
+            not product
+            or not customer_name
+            or not mobile
+            or not address
+        ):
+            return jsonify({
+                "success": False,
+                "message": "Please fill all customer details"
+            }), 400
+
+        if quantity is None or price is None:
+            return jsonify({
+                "success": False,
+                "message": "Quantity and price are required"
+            }), 400
+
+        quantity = float(quantity)
+        price = float(price)
+
+        if quantity <= 0 or price < 0:
+            return jsonify({
+                "success": False,
+                "message": "Invalid quantity or price"
+            }), 400
+
+        total = price * quantity
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            INSERT INTO orders
+            (
+                product_name,
+                customer_name,
+                mobile,
+                address,
+                quantity,
+                total_price,
+                status,
+                payment_method,
+                payment_status
+            )
+            VALUES
+            (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+        """, (
+            product,
+            customer_name,
+            mobile,
+            address,
+            quantity,
+            total,
+            "Pending",
+            None,
+            "Pending"
+        ))
+
+        db.commit()
+
+        order_id = cursor.lastrowid
+
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Order Placed Successfully",
+            "order_id": order_id,
+            "total": total
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# GET SINGLE ORDER DETAILS
+# =========================================================
+
+@app.route("/order-details/<int:order_id>")
+def order_details(order_id):
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT
+                id,
+                product_name,
+                customer_name,
+                mobile,
+                address,
+                quantity,
+                total_price,
+                status,
+                payment_method,
+                payment_status
+            FROM orders
+            WHERE id=%s
+        """, (
+            order_id,
+        ))
+
+        order_data = cursor.fetchone()
+        cursor.close()
+
+        if not order_data:
+
+            return jsonify({
+                "success": False,
+                "message": "Order not found"
+            }), 404
+
+        order_data["total_price"] = float(
+            order_data["total_price"]
+        )
+
+        return jsonify({
+            "success": True,
+            "order": order_data,
+            "total_price": order_data["total_price"]
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# GET ALL ORDERS
+# =========================================================
+
+@app.route("/orders", methods=["GET"])
+def get_orders():
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT *
+            FROM orders
+            ORDER BY id DESC
+        """)
+
+        data = cursor.fetchall()
+        cursor.close()
+
+        return jsonify(data)
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# UPDATE ORDER STATUS
+# =========================================================
+
+@app.route("/update-order/<int:order_id>", methods=["PUT"])
+def update_order(order_id):
+
+    try:
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
+
+        status = data.get("status")
+
+        if not status:
+            return jsonify({
+                "success": False,
+                "message": "Status is required"
+            }), 400
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            UPDATE orders
+            SET status=%s
+            WHERE id=%s
+        """, (
+            status,
+            order_id
+        ))
+
+        db.commit()
+
+        updated = cursor.rowcount
+
+        cursor.close()
+
+        if updated == 0:
+            return jsonify({
+                "success": False,
+                "message": "Order not found"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Status Updated"
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# CASH ON DELIVERY
+# =========================================================
+
+@app.route("/payment/cod", methods=["POST"])
+def payment_cod():
+
+    try:
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
+
+        order_id = data.get("order_id")
+
+        if not order_id:
+            return jsonify({
+                "success": False,
+                "message": "Order ID is required"
+            }), 400
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            UPDATE orders
+            SET
+                payment_method='COD',
+                payment_status='Pending'
+            WHERE id=%s
+        """, (
+            order_id,
+        ))
+
+        db.commit()
+
+        updated = cursor.rowcount
+        cursor.close()
+
+        if updated == 0:
+            return jsonify({
+                "success": False,
+                "message": "Order not found"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Cash on Delivery selected",
+            "order_id": order_id
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# CREATE RAZORPAY ORDER
+# =========================================================
+
+@app.route("/create-razorpay-order", methods=["POST"])
+def create_razorpay_order():
+
+    try:
+
+        if razorpay_client is None:
+            return jsonify({
+                "success": False,
+                "message": "Razorpay is not configured on the server."
+            }), 500
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data received"
+            }), 400
+
+        order_id = data.get("order_id")
+
+        if not order_id:
+            return jsonify({
+                "success": False,
+                "message": "Order ID is required"
+            }), 400
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT
+                id,
+                total_price,
+                payment_status
+            FROM orders
+            WHERE id=%s
+        """, (
+            order_id,
+        ))
+
+        order_data = cursor.fetchone()
+        cursor.close()
+
+        if not order_data:
+            return jsonify({
+                "success": False,
+                "message": "Order not found"
+            }), 404
+
+        if order_data["payment_status"] == "Paid":
+            return jsonify({
+                "success": False,
+                "message": "This order is already paid"
+            }), 400
+
+        amount = int(
+            round(
+                float(order_data["total_price"]) * 100
+            )
+        )
+
+        if amount <= 0:
+            return jsonify({
+                "success": False,
+                "message": "Invalid order amount"
+            }), 400
+
+        razorpay_order = razorpay_client.order.create({
+            "amount": amount,
+            "currency": "INR",
+            "receipt": "farmconnect_" + str(order_id),
+            "payment_capture": 1
+        })
+
+        return jsonify({
+            "success": True,
+            "key_id": RAZORPAY_KEY_ID,
+            "razorpay_order_id": razorpay_order["id"],
+            "amount": amount,
+            "currency": "INR"
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# VERIFY RAZORPAY PAYMENT
+# =========================================================
+
+@app.route("/verify-payment", methods=["POST"])
+def verify_payment():
+
+    try:
+
+        if razorpay_client is None:
+            return jsonify({
+                "success": False,
+                "message": "Razorpay is not configured on the server."
+            }), 500
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No payment data received"
+            }), 400
+
+        order_id = data.get("order_id")
+
+        razorpay_order_id = data.get(
+            "razorpay_order_id"
+        )
+
+        razorpay_payment_id = data.get(
+            "razorpay_payment_id"
+        )
+
+        razorpay_signature = data.get(
+            "razorpay_signature"
+        )
+
+        if not order_id:
+            return jsonify({
+                "success": False,
+                "message": "Order ID missing"
+            }), 400
+
+        if not razorpay_order_id:
+            return jsonify({
+                "success": False,
+                "message": "Razorpay Order ID missing"
+            }), 400
+
+        if not razorpay_payment_id:
+            return jsonify({
+                "success": False,
+                "message": "Razorpay Payment ID missing"
+            }), 400
+
+        if not razorpay_signature:
+            return jsonify({
+                "success": False,
+                "message": "Payment signature missing"
+            }), 400
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT
+                id,
+                payment_status
+            FROM orders
+            WHERE id=%s
+        """, (
+            order_id,
+        ))
+
+        order_data = cursor.fetchone()
+        cursor.close()
+
+        if not order_data:
+            return jsonify({
+                "success": False,
+                "message": "Order not found"
+            }), 404
+
+        verification_data = {
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_signature": razorpay_signature
+        }
+
+        try:
+
+            razorpay_client.utility.verify_payment_signature(
+                verification_data
+            )
+
+        except Exception:
+
+            return jsonify({
+                "success": False,
+                "message": "Payment verification failed"
+            }), 400
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            UPDATE orders
+            SET
+                payment_method=%s,
+                payment_status=%s
+            WHERE id=%s
+        """, (
+            "Razorpay",
+            "Paid",
+            order_id
+        ))
+
+        db.commit()
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Payment verified successfully",
+            "order_id": order_id,
+            "payment_id": razorpay_payment_id
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# ORDER STATUS
+# =========================================================
+
+@app.route("/order-status/<int:order_id>")
+def order_status(order_id):
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT
+                id,
+                status,
+                payment_method,
+                payment_status
+            FROM orders
+            WHERE id=%s
+        """, (
+            order_id,
+        ))
+
+        result = cursor.fetchone()
+        cursor.close()
+
+        if result:
+
+            return jsonify({
+                "success": True,
+                **result
+            })
+
+        return jsonify({
+            "success": False,
+            "message": "Order not found"
+        }), 404
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# CUSTOMER ORDERS PAGE
+# =========================================================
+
+@app.route("/customerOrders")
+def customer_orders():
+
+    return send_from_directory(
+        FRONTEND_FOLDER,
+        "customerOrders.html"
+    )
+
+
+# =========================================================
+# ORDER SUCCESS PAGE
+# =========================================================
+
+@app.route("/order_success")
+def order_success():
+
+    return send_from_directory(
+        FRONTEND_FOLDER,
+        "orderSuccess.html"
+    )
+
+
+# =========================================================
+# FARMER DASHBOARD
+# =========================================================
+
+@app.route("/farmer-dashboard")
+def farmer_dashboard():
+
+    if "farmer_id" not in session:
+        return redirect("/farmer-login.html")
+
+    return send_from_directory(
+        FRONTEND_FOLDER,
+        "farmerDashboard.html"
+    )
+
+
+# =========================================================
+# DASHBOARD STATISTICS
+# =========================================================
+
+@app.route("/dashboard-stats")
+def dashboard_stats():
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT COUNT(*) AS total
+            FROM products
+        """)
+
+        total_products = cursor.fetchone()["total"]
+
+        cursor.execute("""
+            SELECT COUNT(*) AS total
+            FROM orders
+        """)
+
+        total_orders = cursor.fetchone()["total"]
+
+        cursor.execute("""
+            SELECT COUNT(*) AS total
+            FROM orders
+            WHERE status='Pending'
+        """)
+
+        pending_orders = cursor.fetchone()["total"]
+
+        cursor.execute("""
+            SELECT COUNT(*) AS total
+            FROM orders
+            WHERE status='Delivered'
+        """)
+
+        delivered_orders = cursor.fetchone()["total"]
+
+        cursor.execute("""
+            SELECT
+                IFNULL(
+                    SUM(total_price),
+                    0
+                ) AS sales
+            FROM orders
+            WHERE status='Delivered'
+        """)
+
+        total_sales = cursor.fetchone()["sales"]
+
+        cursor.close()
+
+        return jsonify({
+            "totalProducts": total_products,
+            "totalOrders": total_orders,
+            "pendingOrders": pending_orders,
+            "deliveredOrders": delivered_orders,
+            "totalSales": float(total_sales or 0)
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+# =========================================================
+# LOGOUT
+# =========================================================
+
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    return redirect("/")
+
+
+# =========================================================
+# FRONTEND FILES
+# =========================================================
+
+@app.route("/<path:filename>")
+def frontend_files(filename):
+
+    return send_from_directory(
+        FRONTEND_FOLDER,
+        filename
+    )
+
+
+# =========================================================
+# RUN APPLICATION
+# =========================================================
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            8080
+        )
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=True
+    )

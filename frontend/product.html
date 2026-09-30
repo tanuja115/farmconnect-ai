@@ -53,10 +53,6 @@ cursor:pointer;
 width:100%;
 }
 
-button:hover{
-background:#1b5e20;
-}
-
 </style>
 
 </head>
@@ -68,35 +64,32 @@ background:#1b5e20;
 </div>
 
 <div class="container" id="products">
-Loading Products...
+Loading...
 </div>
 
 <script>
 
 async function loadProducts(){
 
-    const container=document.getElementById("products");
+    const container = document.getElementById("products");
 
     try{
 
-        const res=await fetch("https://farmconnect-ai-1.onrender.com/products");
+        const res = await fetch("/products");
 
-        if(!res.ok){
-            throw new Error("Server returned status: "+res.status);
-        }
+        const data = await res.json();
 
-        const data=await res.json();
-
-        if(!Array.isArray(data) || data.length===0){
-            container.innerHTML="<h2>No Products Available</h2>";
+        if(data.length === 0){
+            container.innerHTML = "<h2>No Products Available</h2>";
             return;
         }
 
-        let output="";
+        let output = "";
 
-        data.forEach(product=>{
+        data.forEach(product => {
 
-            output+=`
+            output += `
+
             <div class="card">
 
                 <img src="${product.image || 'https://via.placeholder.com/250'}">
@@ -107,43 +100,46 @@ async function loadProducts(){
 
                 <p>Quantity : ${product.quantity} kg</p>
 
-                <p>${product.description}</p>
+                <p>${product.description || ""}</p>
 
                 <button onclick='buyProduct(${JSON.stringify(product)})'>
                     Buy Now
                 </button>
 
             </div>
+
             `;
 
         });
 
-        container.innerHTML=output;
+        container.innerHTML = output;
 
     }
+    catch(error){
 
-    catch(err){
+        console.log(error);
 
-        console.log(err);
-
-        container.innerHTML=`
-        <div style="grid-column:1/-1;text-align:center;color:red">
-            <h2>Unable to Load Products</h2>
-            <p>${err.message}</p>
-        </div>
-        `;
+        container.innerHTML = "<h2>Failed to Load Products</h2>";
 
     }
 
 }
+
 
 function buyProduct(product){
 
-    localStorage.setItem("selectedProduct",JSON.stringify(product));
+    const quantity = 1;
 
-    window.location.href="payment.html";
+    const url =
+        "/placeorder.html" +
+        "?product=" + encodeURIComponent(product.name) +
+        "&price=" + encodeURIComponent(product.price) +
+        "&quantity=" + encodeURIComponent(quantity);
+
+    window.location.href = url;
 
 }
+
 
 loadProducts();
 

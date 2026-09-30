@@ -1,174 +1,263 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>Payment | FarmConnect AI</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <style>
-        body{
-            font-family:Arial;
-            background:#f4f4f4;
-            margin:0;
-        }
+<title>Place Order - FarmConnect AI</title>
 
-        .header{
-            background:#1565c0;
-            color:white;
-            padding:20px;
-            text-align:center;
-        }
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-        .container{
-            width:90%;
-            max-width:500px;
-            margin:auto;
-            margin-top:20px;
-        }
+<style>
 
-        .card{
-            background:white;
-            padding:20px;
-            border-radius:10px;
-            margin-bottom:15px;
-            box-shadow:0 2px 5px rgba(0,0,0,0.1);
-        }
+body{
+margin:0;
+font-family:Arial;
+background:#f4f4f4;
+}
 
-        .product-details {
-            background: #fcfcfc;
-            border-left: 4px solid #1565c0;
-            padding: 10px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }
+.header{
+background:#1565c0;
+color:white;
+padding:20px;
+text-align:center;
+}
 
-        button{
-            width:100%;
-            padding:12px;
-            margin-top:10px;
-            border:none;
-            border-radius:5px;
-            cursor:pointer;
-            font-weight: bold;
-            font-size: 15px;
-            transition: 0.2s;
-        }
+.container{
+max-width:500px;
+margin:30px auto;
+padding:20px;
+}
 
-        button:hover {
-            opacity: 0.9;
-            transform: scale(1.01);
-        }
+.card{
+background:white;
+padding:25px;
+border-radius:12px;
+box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
 
-        .cod{ background:#2e7d32; color:white; }
-        .upi{ background:#ff9800; color:white; }
-        .razor{ background:#1976d2; color:white; }
-    </style>
+input,
+textarea{
+width:100%;
+padding:12px;
+margin:8px 0 15px;
+box-sizing:border-box;
+border:1px solid #ccc;
+border-radius:8px;
+}
+
+textarea{
+height:100px;
+resize:none;
+}
+
+button{
+width:100%;
+padding:13px;
+border:none;
+background:#2e7d32;
+color:white;
+border-radius:8px;
+cursor:pointer;
+font-size:16px;
+}
+
+button:hover{
+background:#1b5e20;
+}
+
+.product-info{
+background:#f5f5f5;
+padding:15px;
+border-radius:8px;
+margin-bottom:20px;
+}
+
+</style>
+
 </head>
 
 <body>
 
 <div class="header">
-    <strong>💳 Choose Payment Method</strong>
+<h1>🛒 Place Order</h1>
 </div>
 
 <div class="container">
 
-    <div class="card">
-        <h3 id="order-amount">Order Amount: Calculating...</h3>
-        
-        <div id="summary" class="product-details">
-            Loading your item details...
-        </div>
+<div class="card">
 
-        <p style="text-align: center; color: #555;">Select your payment option below:</p>
+<div class="product-info">
 
-        <button class="cod" onclick="payCOD()">🚚 Cash on Delivery</button>
-        <button class="upi" onclick="payUPI()">📱 UPI Payment</button>
-        <button class="razor" onclick="payRazorpay()">💰 Razorpay</button>
-    </div>
+<h2 id="productName">Product</h2>
+
+<p>
+Price: ₹<span id="productPrice">0</span>
+</p>
 
 </div>
 
+<form id="orderForm">
+
+<label>Full Name</label>
+
+<input
+type="text"
+id="customerName"
+placeholder="Enter your full name"
+required
+>
+
+<label>Mobile Number</label>
+
+<input
+type="tel"
+id="mobile"
+placeholder="Enter mobile number"
+pattern="[0-9]{10}"
+required
+>
+
+<label>Delivery Address</label>
+
+<textarea
+id="address"
+placeholder="Enter complete delivery address"
+required
+></textarea>
+
+<label>Quantity (kg)</label>
+
+<input
+type="number"
+id="quantity"
+min="1"
+value="1"
+required
+>
+
+<button type="submit">
+Place Order
+</button>
+
+</form>
+
+</div>
+
+</div>
+
+
 <script>
-// Safely parse selected item context
-let product = null;
-let customer = null;
 
-try {
-    product = JSON.parse(localStorage.getItem("selectedProduct"));
-    customer = JSON.parse(localStorage.getItem("customer"));
-} catch (e) {
-    console.error("Context read error", e);
+const params = new URLSearchParams(window.location.search);
+
+const product = params.get("product");
+const price = params.get("price");
+const quantityFromURL = params.get("quantity");
+
+
+document.getElementById("productName").textContent =
+    product || "Product";
+
+document.getElementById("productPrice").textContent =
+    price || "0";
+
+if(quantityFromURL){
+
+    document.getElementById("quantity").value =
+        quantityFromURL;
+
 }
 
-// Redirect back if context breaks or item wasn't selected
-if (!product) {
-    alert("No item selected for checkout! Returning to shop.");
-    window.location.href = "product.html";
-} else {
-    // Dynamic price tracking logic
-    document.getElementById("order-amount").innerText = `Order Amount: ₹${product.price || 0}`;
-    document.getElementById("summary").innerHTML = `
-        <strong>Item:</strong> ${product.name || 'Produce Item'}<br>
-        <strong>Price:</strong> ₹${product.price || 0} / kg<br>
-        <strong>Description:</strong> ${product.description || 'Fresh produce' }
-    `;
-}
 
-async function payCOD(){
-    if (!product) return;
+document.getElementById("orderForm").addEventListener(
+    "submit",
+    async function(event){
 
-    // Build standard payload matching SQLite backend configuration requirements
-    const orderPayload = {
-        product_id: product.id || null,
-        product_name: product.name,
-        price: product.price,
-        customer_email: customer ? customer.email : "guest@farmconnect.com",
-        payment_method: "COD"
-    };
+        event.preventDefault();
 
-    try {
-        const res = await fetch("/order", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(orderPayload)
-        });
+        const customerName =
+            document.getElementById("customerName").value.trim();
 
-        if (!res.ok) {
-            throw new Error(`Server returned code: ${res.status}`);
+        const mobile =
+            document.getElementById("mobile").value.trim();
+
+        const address =
+            document.getElementById("address").value.trim();
+
+        const quantity =
+            parseFloat(document.getElementById("quantity").value);
+
+
+        if(!customerName || !mobile || !address || quantity <= 0){
+
+            alert("Please fill all details correctly.");
+
+            return;
         }
 
-        const data = await res.json();
 
-        if (data.success) {
-            alert("Order successfully placed with Cash on Delivery! 🚚");
-            // Clear checkout item token
-            localStorage.removeItem("selectedProduct");
-            // Clean redirect to order tracking list dashboard page
-            window.location.href = "customerOrders.html";
-        } else {
-            alert("Order placement failed: " + (data.message || "Unknown Error"));
+        try{
+
+            const response = await fetch("/order",{
+
+                method:"POST",
+
+                headers:{
+                    "Content-Type":"application/json"
+                },
+
+                body:JSON.stringify({
+
+                    product:product,
+
+                    price:parseFloat(price),
+
+                    quantity:quantity,
+
+                    customer_name:customerName,
+
+                    mobile:mobile,
+
+                    address:address
+
+                })
+
+            });
+
+
+            const data = await response.json();
+
+
+            if(data.success){
+
+                window.location.href =
+                    "/payment.html?order_id=" +
+                    encodeURIComponent(data.order_id);
+
+            }
+            else{
+
+                alert(data.message || "Failed to place order.");
+
+            }
+
+        }
+        catch(error){
+
+            console.error(error);
+
+            alert("Something went wrong. Please try again.");
+
         }
 
-    } catch (err) {
-        console.error("Checkout submission error:", err);
-        alert("Failed to reach server. Please try again.");
     }
-}
 
-function payUPI(){
-    alert("UPI integrations require merchant validation. Defaulting securely to COD test mode configuration.");
-    payCOD();
-}
+);
 
-function payRazorpay(){
-    alert("Razorpay payment gateway window loading simulated. Processing order processing sequence.");
-    payCOD();
-}
 </script>
 
 </body>
+
 </html>
 
 

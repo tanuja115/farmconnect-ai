@@ -1,197 +1,635 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<title>Payment - FarmConnect AI</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-body{
-font-family:Arial;
-background:#f4f4f4;
-margin:0;
-padding:20px;
-}
+    <title>Payment - FarmConnect AI</title>
 
-.card{
-background:white;
-max-width:500px;
-margin:auto;
-padding:25px;
-border-radius:15px;
-box-shadow:0 2px 8px rgba(0,0,0,.2);
-text-align:center;
-}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-h1{ color:#2e7d32; }
+    <!-- Razorpay Checkout -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-.option{
-border:1px solid #ddd;
-padding:15px;
-margin:15px 0;
-border-radius:10px;
-cursor:pointer;
-}
+    <style>
 
-.option:hover{ background:#f1f8e9; }
+        body{
+            font-family:Arial;
+            background:#f4f4f4;
+            margin:0;
+        }
 
-button{
-padding:12px 20px;
-background:#2e7d32;
-color:white;
-border:none;
-border-radius:8px;
-cursor:pointer;
-font-size:16px;
-width:100%;
-}
+        .header{
+            background:#1565c0;
+            color:white;
+            padding:20px;
+            text-align:center;
+        }
 
-button:hover{ background:#1b5e20; }
+        .container{
+            width:90%;
+            max-width:500px;
+            margin:auto;
+            margin-top:20px;
+        }
 
-#selected{
-color:#2e7d32;
-font-weight:bold;
-margin:15px 0;
-}
+        .card{
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            margin-bottom:15px;
+            box-shadow:0 2px 5px rgba(0,0,0,0.1);
+        }
 
-#loader{
-display:none;
-color:#ff9800;
-font-weight:bold;
-margin-top:10px;
-}
-</style>
+        button{
+            width:100%;
+            padding:12px;
+            margin-top:10px;
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+            font-size:15px;
+        }
+
+        button:disabled{
+            opacity:0.6;
+            cursor:not-allowed;
+        }
+
+        .cod{
+            background:#2e7d32;
+            color:white;
+        }
+
+        .razor{
+            background:#1976d2;
+            color:white;
+        }
+
+        .order-info{
+            background:#e3f2fd;
+            padding:12px;
+            border-radius:5px;
+            margin-bottom:15px;
+        }
+
+        .loading{
+            display:none;
+            text-align:center;
+            margin-top:15px;
+            color:#1565c0;
+        }
+
+        .error{
+            color:#d32f2f;
+            text-align:center;
+            display:none;
+            margin-top:15px;
+        }
+
+    </style>
+
 </head>
+
 
 <body>
 
-<div class="card">
+<div class="header">
+    💳 Choose Payment Method
+</div>
 
-<h1>💳 Payment</h1>
-<p>Select Payment Method</p>
 
-<div class="option" onclick="selectPayment('UPI')">📱 UPI Payment</div>
-<div class="option" onclick="selectPayment('CARD')">💳 Card Payment</div>
-<div class="option" onclick="selectPayment('COD')">💵 Cash On Delivery</div>
+<div class="container">
 
-<p id="selected">No Payment Method Selected</p>
+    <div class="card">
 
-<div id="loader">⏳ Processing Payment...</div>
+        <div class="order-info">
 
-<button onclick="payNow()">Pay Now</button>
+            <p>
+                <strong>Order ID:</strong>
+                <span id="orderIdText">Loading...</span>
+            </p>
+
+            <p>
+                <strong>Amount:</strong>
+                ₹<span id="amountText">0</span>
+            </p>
+
+        </div>
+
+
+        <h3>Choose Payment Method</h3>
+
+        <p>Select a payment method below.</p>
+
+
+        <!-- RAZORPAY -->
+
+        <button
+            id="razorpayButton"
+            class="razor"
+            onclick="payRazorpay()"
+        >
+            💳 Pay Online - Card / UPI / Net Banking
+        </button>
+
+
+        <!-- COD -->
+
+        <button
+            id="codButton"
+            class="cod"
+            onclick="payCOD()"
+        >
+            🚚 Cash on Delivery
+        </button>
+
+
+        <div
+            class="loading"
+            id="loading"
+        >
+            Processing payment...
+        </div>
+
+
+        <div
+            class="error"
+            id="errorMessage"
+        >
+        </div>
+
+    </div>
 
 </div>
 
+
 <script>
 
-let paymentMethod = "";
+/* =====================================================
+   GET ORDER ID
+===================================================== */
 
-// 👉 Get order_id from URL
-const urlParams = new URLSearchParams(window.location.search);
-const orderId = urlParams.get("order_id");
+const params = new URLSearchParams(
+    window.location.search
+);
 
-function selectPayment(method){
-    paymentMethod = method;
-    document.getElementById("selected").innerText =
-        "Selected: " + method;
-}
+const orderId = params.get("order_id");
 
-function payNow(){
+const orderIdText =
+    document.getElementById("orderIdText");
 
-if(paymentMethod === ""){
-    alert("Please select payment method");
-    return;
-}
+const amountText =
+    document.getElementById("amountText");
+
+const loading =
+    document.getElementById("loading");
+
+const errorMessage =
+    document.getElementById("errorMessage");
+
+const razorpayButton =
+    document.getElementById("razorpayButton");
+
+const codButton =
+    document.getElementById("codButton");
+
+
+/* =====================================================
+   CHECK ORDER ID
+===================================================== */
 
 if(!orderId){
-    alert("Order ID missing!");
-    return;
+
+    orderIdText.innerText = "Missing";
+
+    showError(
+        "Order ID is missing. Please place the order again."
+    );
+
+    razorpayButton.disabled = true;
+    codButton.disabled = true;
+
+}
+else{
+
+    orderIdText.innerText = orderId;
+
+    loadOrder();
+
 }
 
-let amount = 100;
 
-// ==========================
-// 🟢 UPI PAYMENT (MOBILE ONLY)
-// ==========================
-if(paymentMethod === "UPI"){
+/* =====================================================
+   LOAD ORDER DETAILS
+===================================================== */
 
-    let isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+async function loadOrder(){
 
-    if(isMobile){
+    try{
 
-        let upiUrl =
-        "upi://pay?pa=farmconnect@upi&pn=FarmConnect AI&am=" +
-        amount +
-        "&cu=INR";
+        const response = await fetch(
+            "/order-details/" + encodeURIComponent(orderId)
+        );
 
-        window.location.href = upiUrl;
+        const data = await response.json();
 
-    } else {
-        alert("UPI works only on Mobile 📱");
+
+        if(!response.ok || !data.success){
+
+            showError(
+                data.message ||
+                "Unable to load order details."
+            );
+
+            razorpayButton.disabled = true;
+            codButton.disabled = true;
+
+            return;
+        }
+
+
+        amountText.innerText =
+            Number(data.total_price).toFixed(2);
+
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        showError(
+            "Unable to connect to the server."
+        );
+
+        razorpayButton.disabled = true;
+        codButton.disabled = true;
+
     }
 
-    return;
 }
 
-// ==========================
-// 🟡 CARD PAYMENT (SIMULATED)
-// ==========================
-if(paymentMethod === "CARD"){
 
-    document.getElementById("loader").style.display = "block";
+/* =====================================================
+   RAZORPAY PAYMENT
+===================================================== */
 
-    setTimeout(() => {
+async function payRazorpay(){
 
-        document.getElementById("loader").style.display = "none";
+    if(!orderId){
 
-        fetch("http://127.0.0.1:8080/payment", {
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
+        alert("Order ID is missing.");
+
+        return;
+    }
+
+
+    setLoading(true);
+
+
+    try{
+
+        /* ---------------------------------------------
+           CREATE RAZORPAY ORDER
+        --------------------------------------------- */
+
+        const response = await fetch(
+            "/create-razorpay-order",
+            {
+                method:"POST",
+
+                headers:{
+                    "Content-Type":"application/json"
+                },
+
+                body:JSON.stringify({
+                    order_id:orderId
+                })
+            }
+        );
+
+
+        const data = await response.json();
+
+
+        if(!response.ok || !data.success){
+
+            alert(
+                data.message ||
+                "Unable to create payment."
+            );
+
+            setLoading(false);
+
+            return;
+        }
+
+
+        /* ---------------------------------------------
+           RAZORPAY CHECKOUT OPTIONS
+        --------------------------------------------- */
+
+        const options = {
+
+            key:data.key_id,
+
+            amount:data.amount,
+
+            currency:data.currency || "INR",
+
+            name:"FarmConnect AI",
+
+            description:
+                "Payment for FarmConnect AI Order",
+
+            order_id:data.razorpay_order_id,
+
+
+            /* -----------------------------------------
+               PAYMENT SUCCESS
+            ----------------------------------------- */
+
+            handler:async function(paymentResponse){
+
+                try{
+
+                    setLoading(true);
+
+
+                    const verifyResponse =
+                        await fetch(
+                            "/verify-payment",
+                            {
+                                method:"POST",
+
+                                headers:{
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body:JSON.stringify({
+
+                                    order_id:orderId,
+
+                                    razorpay_order_id:
+                                        paymentResponse
+                                        .razorpay_order_id,
+
+                                    razorpay_payment_id:
+                                        paymentResponse
+                                        .razorpay_payment_id,
+
+                                    razorpay_signature:
+                                        paymentResponse
+                                        .razorpay_signature
+
+                                })
+                            }
+                        );
+
+
+                    const result =
+                        await verifyResponse.json();
+
+
+                    if(
+                        verifyResponse.ok &&
+                        result.success
+                    ){
+
+                        window.location.href =
+                            "/order_success?order_id=" +
+                            encodeURIComponent(orderId);
+
+                    }
+                    else{
+
+                        alert(
+                            result.message ||
+                            "Payment verification failed."
+                        );
+
+                    }
+
+                }
+                catch(error){
+
+                    console.error(error);
+
+                    alert(
+                        "Payment verification failed. Please contact support if money was deducted."
+                    );
+
+                }
+                finally{
+
+                    setLoading(false);
+
+                }
+
             },
-            body:JSON.stringify({
-                order_id: orderId,
-                amount: amount,
-                method: "CARD",
-                payment_status: "Paid"
-            })
-        });
 
-        alert("🎉 Card Payment Successful!");
-        window.location.href = "orderSuccess.html";
 
-    }, 2000);
+            /* -----------------------------------------
+               PREFILL CUSTOMER INFORMATION
+            ----------------------------------------- */
 
-    return;
+            prefill:{
+                name:"",
+                contact:"",
+                email:""
+            },
+
+
+            theme:{
+                color:"#1565c0"
+            },
+
+
+            /* -----------------------------------------
+               PAYMENT WINDOW CLOSED
+            ----------------------------------------- */
+
+            modal:{
+
+                ondismiss:function(){
+
+                    setLoading(false);
+
+                }
+
+            }
+
+        };
+
+
+        /* ---------------------------------------------
+           OPEN RAZORPAY
+        --------------------------------------------- */
+
+        const razorpay =
+            new Razorpay(options);
+
+
+        razorpay.on(
+            "payment.failed",
+            function(response){
+
+                console.error(
+                    "Payment failed:",
+                    response.error
+                );
+
+                alert(
+                    response.error.description ||
+                    "Payment failed. Please try again."
+                );
+
+                setLoading(false);
+
+            }
+        );
+
+
+        razorpay.open();
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        alert(
+            "Unable to start payment. Please try again."
+        );
+
+        setLoading(false);
+
+    }
+
 }
 
-// ==========================
-// 🟣 CASH ON DELIVERY
-// ==========================
-if(paymentMethod === "COD"){
 
-    fetch("http://127.0.0.1:8080/payment", {
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-            order_id: orderId,
-            amount: amount,
-            method: "COD",
-            payment_status: "Pending"
-        })
-    });
+/* =====================================================
+   CASH ON DELIVERY
+===================================================== */
 
-    alert("🚚 Order Placed! Pay on Delivery");
+async function payCOD(){
 
-    window.location.href = "orderSuccess.html";
+    if(!orderId){
 
-    return;
+        alert("Order ID is missing.");
+
+        return;
+    }
+
+
+    const confirmed = confirm(
+        "Do you want to place this order with Cash on Delivery?"
+    );
+
+
+    if(!confirmed){
+
+        return;
+    }
+
+
+    setLoading(true);
+
+
+    try{
+
+        const response = await fetch(
+            "/payment/cod",
+            {
+                method:"POST",
+
+                headers:{
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body:JSON.stringify({
+                    order_id:orderId
+                })
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if(response.ok && data.success){
+
+            window.location.href =
+                "/order_success?order_id=" +
+                encodeURIComponent(orderId);
+
+            return;
+
+        }
+
+
+        alert(
+            data.message ||
+            "Unable to place COD order."
+        );
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        alert(
+            "Something went wrong. Please try again."
+        );
+
+    }
+    finally{
+
+        setLoading(false);
+
+    }
+
 }
+
+
+/* =====================================================
+   LOADING
+===================================================== */
+
+function setLoading(isLoading){
+
+    loading.style.display =
+        isLoading ? "block" : "none";
+
+    razorpayButton.disabled =
+        isLoading;
+
+    codButton.disabled =
+        isLoading;
+
+}
+
+
+/* =====================================================
+   ERROR MESSAGE
+===================================================== */
+
+function showError(message){
+
+    errorMessage.innerText =
+        message;
+
+    errorMessage.style.display =
+        "block";
 
 }
 
 </script>
 
 </body>
+
 </html>
+
+
