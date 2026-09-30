@@ -2,128 +2,163 @@
 <html>
 <head>
 <title>Farmer Login</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-
 body{
-font-family:Arial;
-background:#f4f4f4;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
+    font-family:Arial;
+    background:#f4f4f4;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
 }
 
 .box{
-width:350px;
-background:white;
-padding:30px;
-border-radius:15px;
-box-shadow:0 5px 15px rgba(0,0,0,.2);
+    width:350px;
+    background:white;
+    padding:30px;
+    border-radius:15px;
+    box-shadow:0 5px 15px rgba(0,0,0,.2);
 }
 
 h2{
-text-align:center;
-color:#2e7d32;
+    text-align:center;
+    color:#2e7d32;
 }
 
 input{
-width:100%;
-padding:12px;
-margin:10px 0;
-border:1px solid #ccc;
-border-radius:8px;
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border:1px solid #ccc;
+    border-radius:8px;
+    box-sizing:border-box;
 }
 
 button{
-width:100%;
-padding:12px;
-background:#2e7d32;
-color:white;
-border:none;
-border-radius:8px;
-cursor:pointer;
+    width:100%;
+    padding:12px;
+    background:#2e7d32;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
 }
 
 button:hover{
-background:#1b5e20;
+    background:#1b5e20;
 }
 
 p{
-text-align:center;
-margin-top:15px;
+    text-align:center;
+    margin-top:15px;
 }
 
 a{
-color:#2e7d32;
-text-decoration:none;
+    color:#2e7d32;
+    text-decoration:none;
 }
 
+.forgot{
+    display:block;
+    text-align:right;
+    margin-top:5px;
+    font-size:14px;
+}
 </style>
-
 </head>
 
 <body>
 
 <div class="box">
 
-<h2>👨‍🌾 Farmer Login</h2>
+    <h2>👨‍🌾 Farmer Login</h2>
 
-<input type="email" id="email" placeholder="Email">
+    <input
+        type="email"
+        id="email"
+        placeholder="Email"
+    >
 
-<input type="password" id="password" placeholder="Password">
+    <input
+        type="password"
+        id="password"
+        placeholder="Password"
+    >
 
-<button onclick="login()">
-Login
-</button>
+    <a
+        href="farmer-forgot-password.html"
+        class="forgot"
+    >
+        Forgot Password?
+    </a>
 
-<p>
-New Farmer?
-<a href="farmer-register.html">
-Register
-</a>
-</p>
+    <br>
+
+    <button onclick="login()">
+        Login
+    </button>
+
+    <p>
+        New Farmer?
+        <a href="farmer-register.html">
+            Register
+        </a>
+    </p>
 
 </div>
 
 <script>
 
-function login(){
+async function login(){
 
-fetch("/farmer-login",{ //  Now correctly hits your farmer login endpoint
+    const email =
+        document.getElementById("email").value.trim();
 
-method:"POST",
+    const password =
+        document.getElementById("password").value;
 
-headers:{
-"Content-Type":"application/json"
-},
+    if(!email || !password){
 
-body:JSON.stringify({
+        alert("Please enter email and password.");
+        return;
+    }
 
-email:document.getElementById("email").value,
+    try{
 
-password:document.getElementById("password").value
+        const response = await fetch(
+            "/farmer-login",
+            {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    email:email,
+                    password:password
+                })
+            }
+        );
 
-})
+        const data = await response.json();
 
-})
+        alert(data.message);
 
-.then(res=>res.json())
+        if(data.success){
 
-.then(data=>{
+            window.location.href =
+                "farmerDashboard.html";
+        }
 
-alert(data.message);
+    }catch(error){
 
-if(data.success){
+        console.error(error);
 
-window.location.href="farmerDashboard.html";
-
-}
-
-});
-
+        alert(
+            "Unable to connect to server."
+        );
+    }
 }
 
 </script>

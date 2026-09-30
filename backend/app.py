@@ -2,7 +2,13 @@ from flask import Flask, request, jsonify, redirect, session, send_from_director
 from flask_cors import CORS
 import mysql.connector
 import os
+import secrets
+from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 import razorpay
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # =========================================================
@@ -70,6 +76,7 @@ FRONTEND_FOLDER = os.path.join(
 
 @app.route("/")
 def home():
+
     return send_from_directory(
         FRONTEND_FOLDER,
         "home.html"
@@ -84,6 +91,7 @@ def home():
 def register():
 
     try:
+
         data = request.get_json()
 
         if not data:
@@ -93,13 +101,19 @@ def register():
             }), 400
 
         name = data.get("name")
-        email = data.get("email")
+        email = data.get("email", "").strip().lower()
         password = data.get("password")
 
         if not name or not email or not password:
             return jsonify({
                 "success": False,
                 "message": "All fields are required"
+            }), 400
+
+        if len(password) < 6:
+            return jsonify({
+                "success": False,
+                "message": "Password must contain at least 6 characters"
             }), 400
 
         cursor = db.cursor(dictionary=True)
@@ -118,6 +132,9 @@ def register():
                 "message": "You are already registered. Please login."
             })
 
+        # New customer passwords are stored securely.
+        password_hash = generate_password_hash(password)
+
         cursor = db.cursor()
 
         cursor.execute("""
@@ -128,7 +145,7 @@ def register():
         """, (
             name,
             email,
-            password
+            password_hash
         ))
 
         db.commit()
@@ -141,20 +158,26 @@ def register():
 
     except Exception as e:
 
+        print("Customer registration error:", e)
+
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": "Registration failed."
         }), 500
 
 
 # =========================================================
 # CUSTOMER LOGIN
+# Supports:
+# 1. Old plain-text passwords
+# 2. New hashed passwords
 # =========================================================
 
 @app.route("/login", methods=["POST"])
 def login():
 
     try:
+
         data = request.get_json()
 
         if not data:
@@ -163,8 +186,14 @@ def login():
                 "message": "No data received"
             }), 400
 
-        email = data.get("email")
-        password = data.get("password")
+        email = data.get("email", "").strip().lower()
+        password = data.get("password", "")
+
+        if not email or not password:
+            return jsonify({
+                "success": False,
+                "message": "Email and password are required"
+            }), 400
 
         cursor = db.cursor(dictionary=True)
 
@@ -172,16 +201,42 @@ def login():
             SELECT *
             FROM users
             WHERE email=%s
-            AND password=%s
         """, (
             email,
-            password
         ))
 
         user = cursor.fetchone()
         cursor.close()
 
-        if user:
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Invalid Email or Password"
+            })
+
+        stored_password = user["password"]
+
+        password_valid = False
+
+        # Newly registered/reset passwords
+        if stored_password.startswith(("pbkdf2:", "scrypt:")):
+
+            try:
+                password_valid = check_password_hash(
+                    stored_password,
+                    password
+                )
+            except Exception:
+                password_valid = False
+
+        # Existing old passwords
+        else:
+
+            password_valid = (
+                stored_password == password
+            )
+
+        if password_valid:
 
             session["user_id"] = user["id"]
             session["user_name"] = user["name"]
@@ -199,9 +254,191 @@ def login():
 
     except Exception as e:
 
+        print("Customer login error:", e)
+
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": "Login failed."
+        }), 500
+
+
+# =========================================================
+# CUSTOMER FORGOT PASSWORD
+# =========================================================
+
+@app.route("/forgot-password", methods=["POST"])
+def forgot_password():
+
+    data = request.get_json() or {}
+
+    email = data.get(
+        "email",
+        ""
+    ).strip().lower()
+
+    if not email:
+
+        return jsonify({
+            "success": False,
+            "message": "Email is required."
+        }), 400
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute(
+            "SELECT id FROM users WHERE email=%s",
+            (email,)
+        )
+
+        user = cursor.fetchone()
+
+        # Don't reveal whether the email exists.
+        if not user:
+
+            cursor.close()
+
+            return jsonify({
+                "success": True,
+                "message": "If this email is registered, a password reset request has been created."
+            })
+
+        # Generate secure token
+        token = secrets.token_urlsafe(32)
+
+        # Token valid for 30 minutes
+        expiry = datetime.now() + timedelta(
+            minutes=30
+        )
+
+        cursor.execute("""
+            UPDATE users
+            SET
+                reset_token=%s,
+                reset_token_expiry=%s
+            WHERE id=%s
+        """, (
+            token,
+            expiry,
+            user["id"]
+        ))
+
+        db.commit()
+        cursor.close()
+
+        # TEMPORARY DEVELOPMENT RESPONSE
+        # Later this token should be sent through email.
+        return jsonify({
+            "success": True,
+            "message": "Password reset request created.",
+            "reset_token": token
+        })
+
+    except Exception as e:
+
+        print(
+            "Customer forgot password error:",
+            e
+        )
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to process password reset."
+        }), 500
+
+
+# =========================================================
+# CUSTOMER RESET PASSWORD
+# =========================================================
+
+@app.route("/reset-password", methods=["POST"])
+def reset_password():
+
+    data = request.get_json() or {}
+
+    token = data.get(
+        "token",
+        ""
+    ).strip()
+
+    new_password = data.get(
+        "password",
+        ""
+    )
+
+    if not token or not new_password:
+
+        return jsonify({
+            "success": False,
+            "message": "Reset token and new password are required."
+        }), 400
+
+    if len(new_password) < 6:
+
+        return jsonify({
+            "success": False,
+            "message": "Password must contain at least 6 characters."
+        }), 400
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id
+            FROM users
+            WHERE reset_token=%s
+            AND reset_token_expiry > NOW()
+        """, (
+            token,
+        ))
+
+        user = cursor.fetchone()
+
+        if not user:
+
+            cursor.close()
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid or expired reset link."
+            }), 400
+
+        password_hash = generate_password_hash(
+            new_password
+        )
+
+        cursor.execute("""
+            UPDATE users
+            SET
+                password=%s,
+                reset_token=NULL,
+                reset_token_expiry=NULL
+            WHERE id=%s
+        """, (
+            password_hash,
+            user["id"]
+        ))
+
+        db.commit()
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Password reset successfully."
+        })
+
+    except Exception as e:
+
+        print(
+            "Customer reset password error:",
+            e
+        )
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to reset password."
         }), 500
 
 
@@ -213,9 +450,11 @@ def login():
 def farmer_register():
 
     try:
+
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No data received"
@@ -223,13 +462,24 @@ def farmer_register():
 
         name = data.get("name")
         mobile = data.get("mobile")
-        email = data.get("email")
+        email = data.get(
+            "email",
+            ""
+        ).strip().lower()
         password = data.get("password")
 
         if not name or not mobile or not email or not password:
+
             return jsonify({
                 "success": False,
                 "message": "All fields are required"
+            }), 400
+
+        if len(password) < 6:
+
+            return jsonify({
+                "success": False,
+                "message": "Password must contain at least 6 characters"
             }), 400
 
         cursor = db.cursor(dictionary=True)
@@ -243,10 +493,16 @@ def farmer_register():
         cursor.close()
 
         if farmer:
+
             return jsonify({
                 "success": False,
                 "message": "Farmer already registered. Please login."
             })
+
+        # New farmer passwords are stored securely.
+        password_hash = generate_password_hash(
+            password
+        )
 
         cursor = db.cursor()
 
@@ -259,7 +515,7 @@ def farmer_register():
             name,
             mobile,
             email,
-            password
+            password_hash
         ))
 
         db.commit()
@@ -272,30 +528,51 @@ def farmer_register():
 
     except Exception as e:
 
+        print("Farmer registration error:", e)
+
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": "Registration failed."
         }), 500
 
 
 # =========================================================
 # FARMER LOGIN
+# Supports:
+# 1. Old plain-text passwords
+# 2. New hashed passwords
 # =========================================================
 
 @app.route("/farmer-login", methods=["POST"])
 def farmer_login():
 
     try:
+
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No data received"
             }), 400
 
-        email = data.get("email")
-        password = data.get("password")
+        email = data.get(
+            "email",
+            ""
+        ).strip().lower()
+
+        password = data.get(
+            "password",
+            ""
+        )
+
+        if not email or not password:
+
+            return jsonify({
+                "success": False,
+                "message": "Email and password are required"
+            }), 400
 
         cursor = db.cursor(dictionary=True)
 
@@ -303,16 +580,46 @@ def farmer_login():
             SELECT *
             FROM farmers
             WHERE email=%s
-            AND password=%s
         """, (
             email,
-            password
         ))
 
         farmer = cursor.fetchone()
         cursor.close()
 
-        if farmer:
+        if not farmer:
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid Email or Password"
+            })
+
+        stored_password = farmer["password"]
+
+        password_valid = False
+
+        # New hashed password
+        if stored_password.startswith(("pbkdf2:", "scrypt:")):
+
+            try:
+
+                password_valid = check_password_hash(
+                    stored_password,
+                    password
+                )
+
+            except Exception:
+
+                password_valid = False
+
+        # Old plain-text password
+        else:
+
+            password_valid = (
+                stored_password == password
+            )
+
+        if password_valid:
 
             session["farmer_id"] = farmer["id"]
             session["farmer_name"] = farmer["name"]
@@ -330,9 +637,191 @@ def farmer_login():
 
     except Exception as e:
 
+        print("Farmer login error:", e)
+
         return jsonify({
             "success": False,
-            "message": str(e)
+            "message": "Login failed."
+        }), 500
+
+
+# =========================================================
+# FARMER FORGOT PASSWORD
+# =========================================================
+
+@app.route("/farmer-forgot-password", methods=["POST"])
+def farmer_forgot_password():
+
+    data = request.get_json() or {}
+
+    email = data.get(
+        "email",
+        ""
+    ).strip().lower()
+
+    if not email:
+
+        return jsonify({
+            "success": False,
+            "message": "Email is required."
+        }), 400
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute(
+            "SELECT id FROM farmers WHERE email=%s",
+            (email,)
+        )
+
+        farmer = cursor.fetchone()
+
+        # Don't reveal whether the email exists.
+        if not farmer:
+
+            cursor.close()
+
+            return jsonify({
+                "success": True,
+                "message": "If this email is registered, a password reset request has been created."
+            })
+
+        # Generate secure token
+        token = secrets.token_urlsafe(32)
+
+        # Token valid for 30 minutes
+        expiry = datetime.now() + timedelta(
+            minutes=30
+        )
+
+        cursor.execute("""
+            UPDATE farmers
+            SET
+                reset_token=%s,
+                reset_token_expiry=%s
+            WHERE id=%s
+        """, (
+            token,
+            expiry,
+            farmer["id"]
+        ))
+
+        db.commit()
+        cursor.close()
+
+        # TEMPORARY DEVELOPMENT RESPONSE
+        # Later this token should be sent through email.
+        return jsonify({
+            "success": True,
+            "message": "Password reset request created.",
+            "reset_token": token
+        })
+
+    except Exception as e:
+
+        print(
+            "Farmer forgot password error:",
+            e
+        )
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to process password reset."
+        }), 500
+
+
+# =========================================================
+# FARMER RESET PASSWORD
+# =========================================================
+
+@app.route("/farmer-reset-password", methods=["POST"])
+def farmer_reset_password():
+
+    data = request.get_json() or {}
+
+    token = data.get(
+        "token",
+        ""
+    ).strip()
+
+    new_password = data.get(
+        "password",
+        ""
+    )
+
+    if not token or not new_password:
+
+        return jsonify({
+            "success": False,
+            "message": "Reset token and new password are required."
+        }), 400
+
+    if len(new_password) < 6:
+
+        return jsonify({
+            "success": False,
+            "message": "Password must contain at least 6 characters."
+        }), 400
+
+    try:
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id
+            FROM farmers
+            WHERE reset_token=%s
+            AND reset_token_expiry > NOW()
+        """, (
+            token,
+        ))
+
+        farmer = cursor.fetchone()
+
+        if not farmer:
+
+            cursor.close()
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid or expired reset link."
+            }), 400
+
+        password_hash = generate_password_hash(
+            new_password
+        )
+
+        cursor.execute("""
+            UPDATE farmers
+            SET
+                password=%s,
+                reset_token=NULL,
+                reset_token_expiry=NULL
+            WHERE id=%s
+        """, (
+            password_hash,
+            farmer["id"]
+        ))
+
+        db.commit()
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Password reset successfully."
+        })
+
+    except Exception as e:
+
+        print(
+            "Farmer reset password error:",
+            e
+        )
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to reset password."
         }), 500
 
 
@@ -360,6 +849,7 @@ def products():
         """)
 
         data = cursor.fetchall()
+
         cursor.close()
 
         return jsonify(data)
@@ -402,7 +892,17 @@ def delete_product(id):
         )
 
         db.commit()
+
+        updated = cursor.rowcount
+
         cursor.close()
+
+        if updated == 0:
+
+            return jsonify({
+                "success": False,
+                "message": "Product not found"
+            }), 404
 
         return jsonify({
             "success": True,
@@ -429,6 +929,7 @@ def order():
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No order data received"
@@ -447,12 +948,14 @@ def order():
             or not mobile
             or not address
         ):
+
             return jsonify({
                 "success": False,
                 "message": "Please fill all customer details"
             }), 400
 
         if quantity is None or price is None:
+
             return jsonify({
                 "success": False,
                 "message": "Quantity and price are required"
@@ -462,6 +965,7 @@ def order():
         price = float(price)
 
         if quantity <= 0 or price < 0:
+
             return jsonify({
                 "success": False,
                 "message": "Invalid quantity or price"
@@ -523,6 +1027,8 @@ def order():
 
     except Exception as e:
 
+        print("Order error:", e)
+
         return jsonify({
             "success": False,
             "message": str(e)
@@ -559,6 +1065,7 @@ def order_details(order_id):
         ))
 
         order_data = cursor.fetchone()
+
         cursor.close()
 
         if not order_data:
@@ -604,6 +1111,7 @@ def get_orders():
         """)
 
         data = cursor.fetchall()
+
         cursor.close()
 
         return jsonify(data)
@@ -628,6 +1136,7 @@ def update_order(order_id):
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No data received"
@@ -636,6 +1145,7 @@ def update_order(order_id):
         status = data.get("status")
 
         if not status:
+
             return jsonify({
                 "success": False,
                 "message": "Status is required"
@@ -659,6 +1169,7 @@ def update_order(order_id):
         cursor.close()
 
         if updated == 0:
+
             return jsonify({
                 "success": False,
                 "message": "Order not found"
@@ -689,6 +1200,7 @@ def payment_cod():
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No data received"
@@ -697,6 +1209,7 @@ def payment_cod():
         order_id = data.get("order_id")
 
         if not order_id:
+
             return jsonify({
                 "success": False,
                 "message": "Order ID is required"
@@ -717,9 +1230,11 @@ def payment_cod():
         db.commit()
 
         updated = cursor.rowcount
+
         cursor.close()
 
         if updated == 0:
+
             return jsonify({
                 "success": False,
                 "message": "Order not found"
@@ -749,6 +1264,7 @@ def create_razorpay_order():
     try:
 
         if razorpay_client is None:
+
             return jsonify({
                 "success": False,
                 "message": "Razorpay is not configured on the server."
@@ -757,6 +1273,7 @@ def create_razorpay_order():
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No data received"
@@ -765,6 +1282,7 @@ def create_razorpay_order():
         order_id = data.get("order_id")
 
         if not order_id:
+
             return jsonify({
                 "success": False,
                 "message": "Order ID is required"
@@ -784,15 +1302,18 @@ def create_razorpay_order():
         ))
 
         order_data = cursor.fetchone()
+
         cursor.close()
 
         if not order_data:
+
             return jsonify({
                 "success": False,
                 "message": "Order not found"
             }), 404
 
         if order_data["payment_status"] == "Paid":
+
             return jsonify({
                 "success": False,
                 "message": "This order is already paid"
@@ -805,6 +1326,7 @@ def create_razorpay_order():
         )
 
         if amount <= 0:
+
             return jsonify({
                 "success": False,
                 "message": "Invalid order amount"
@@ -827,6 +1349,8 @@ def create_razorpay_order():
 
     except Exception as e:
 
+        print("Razorpay order error:", e)
+
         return jsonify({
             "success": False,
             "message": str(e)
@@ -843,6 +1367,7 @@ def verify_payment():
     try:
 
         if razorpay_client is None:
+
             return jsonify({
                 "success": False,
                 "message": "Razorpay is not configured on the server."
@@ -851,6 +1376,7 @@ def verify_payment():
         data = request.get_json()
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "No payment data received"
@@ -871,24 +1397,28 @@ def verify_payment():
         )
 
         if not order_id:
+
             return jsonify({
                 "success": False,
                 "message": "Order ID missing"
             }), 400
 
         if not razorpay_order_id:
+
             return jsonify({
                 "success": False,
                 "message": "Razorpay Order ID missing"
             }), 400
 
         if not razorpay_payment_id:
+
             return jsonify({
                 "success": False,
                 "message": "Razorpay Payment ID missing"
             }), 400
 
         if not razorpay_signature:
+
             return jsonify({
                 "success": False,
                 "message": "Payment signature missing"
@@ -907,9 +1437,11 @@ def verify_payment():
         ))
 
         order_data = cursor.fetchone()
+
         cursor.close()
 
         if not order_data:
+
             return jsonify({
                 "success": False,
                 "message": "Order not found"
@@ -949,6 +1481,7 @@ def verify_payment():
         ))
 
         db.commit()
+
         cursor.close()
 
         return jsonify({
@@ -959,6 +1492,8 @@ def verify_payment():
         })
 
     except Exception as e:
+
+        print("Payment verification error:", e)
 
         return jsonify({
             "success": False,
@@ -990,6 +1525,7 @@ def order_status(order_id):
         ))
 
         result = cursor.fetchone()
+
         cursor.close()
 
         if result:
@@ -1046,7 +1582,10 @@ def order_success():
 def farmer_dashboard():
 
     if "farmer_id" not in session:
-        return redirect("/farmer-login.html")
+
+        return redirect(
+            "/farmer-login.html"
+        )
 
     return send_from_directory(
         FRONTEND_FOLDER,
@@ -1114,7 +1653,9 @@ def dashboard_stats():
             "totalOrders": total_orders,
             "pendingOrders": pending_orders,
             "deliveredOrders": delivered_orders,
-            "totalSales": float(total_sales or 0)
+            "totalSales": float(
+                total_sales or 0
+            )
         })
 
     except Exception as e:
