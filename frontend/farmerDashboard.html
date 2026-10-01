@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +7,6 @@
 
     <title>Farmer Dashboard - FarmConnect AI</title>
 
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -21,8 +21,6 @@
             background: #f4f7f4;
             min-height: 100vh;
         }
-
-        /* ================= SIDEBAR ================= */
 
         .sidebar {
             position: fixed;
@@ -85,8 +83,6 @@
             background: #b71c1c !important;
         }
 
-        /* ================= MAIN ================= */
-
         .main {
             margin-left: 250px;
             padding: 30px;
@@ -109,8 +105,6 @@
             color: #666;
             font-size: 14px;
         }
-
-        /* ================= STAT CARDS ================= */
 
         .stats {
             display: grid;
@@ -139,8 +133,6 @@
             color: #1b5e20;
         }
 
-        /* ================= CHART ================= */
-
         .chart-card {
             background: white;
             padding: 25px;
@@ -159,8 +151,6 @@
             position: relative;
             height: 330px;
         }
-
-        /* ================= ACTION CARDS ================= */
 
         .section-title {
             color: #1b5e20;
@@ -204,8 +194,6 @@
             line-height: 1.5;
         }
 
-        /* ================= STATUS ================= */
-
         #statusMessage {
             position: fixed;
             right: 20px;
@@ -217,8 +205,6 @@
             display: none;
             z-index: 2000;
         }
-
-        /* ================= RESPONSIVE ================= */
 
         @media (max-width: 1100px) {
             .stats {
@@ -274,8 +260,6 @@
 
 <body>
 
-<!-- ================= SIDEBAR ================= -->
-
 <div class="sidebar">
 
     <div class="logo">
@@ -330,12 +314,7 @@
 
 </div>
 
-
-<!-- ================= MAIN CONTENT ================= -->
-
 <div class="main">
-
-    <!-- Header -->
 
     <div class="header">
 
@@ -348,9 +327,6 @@
         </p>
 
     </div>
-
-
-    <!-- ================= STATISTICS ================= -->
 
     <div class="stats">
 
@@ -381,9 +357,6 @@
 
     </div>
 
-
-    <!-- ================= CHART ================= -->
-
     <div class="chart-card">
 
         <h2>FarmConnect Statistics</h2>
@@ -394,9 +367,6 @@
 
     </div>
 
-
-    <!-- ================= ACTIONS ================= -->
-
     <h2 class="section-title">
         Quick Actions
     </h2>
@@ -404,93 +374,58 @@
     <div class="actions">
 
         <div class="action-card" onclick="openAddProduct()">
-
             <div class="icon">➕</div>
-
             <h3>Add Product</h3>
-
             <p>
                 Add a new agricultural product and make it available to customers.
             </p>
-
         </div>
 
-
         <div class="action-card" onclick="openRemoveProduct()">
-
             <div class="icon">🗑️</div>
-
             <h3>Remove Product</h3>
-
             <p>
                 View and remove products that are no longer available.
             </p>
-
         </div>
 
-
         <div class="action-card" onclick="openOrders()">
-
             <div class="icon">📦</div>
-
             <h3>Manage Orders</h3>
-
             <p>
                 View customer orders and manage their status.
             </p>
-
         </div>
 
-
         <div class="action-card" onclick="openAI()">
-
             <div class="icon">🤖</div>
-
             <h3>AI Description</h3>
-
             <p>
                 Generate professional product descriptions using AI.
             </p>
-
         </div>
 
-
         <div class="action-card" onclick="openPrice()">
-
             <div class="icon">💰</div>
-
             <h3>AI Price Prediction</h3>
-
             <p>
                 Use AI-based functionality to estimate product prices.
             </p>
-
         </div>
 
-
         <div class="action-card" onclick="loadDashboardStats()">
-
             <div class="icon">🔄</div>
-
             <h3>Refresh Dashboard</h3>
-
             <p>
                 Refresh the latest products, orders and sales statistics.
             </p>
-
         </div>
 
     </div>
 
 </div>
 
-
-<!-- Status Message -->
-
 <div id="statusMessage"></div>
-
-
-<!-- ================= JAVASCRIPT ================= -->
 
 <script>
 
@@ -504,35 +439,38 @@ function openDashboard() {
 }
 
 
+/*
+ * Use normal same-origin navigation.
+ * Browser automatically sends the Flask session cookie.
+ */
+
 function openAddProduct() {
-    window.location.href = "/farmer.html";
+    window.location.assign("/farmer.html");
 }
 
 
 function openRemoveProduct() {
-    window.location.href = "/removeProduct.html";
+    window.location.assign("/removeProduct.html");
 }
 
 
 function openOrders() {
-    window.location.href = "/farmerOrders.html";
+    window.location.assign("/farmerOrders.html");
 }
 
 
 function openAI() {
-    window.location.href = "/ai.html";
+    window.location.assign("/ai.html");
 }
 
 
 function openPrice() {
-    window.location.href = "/price.html";
+    window.location.assign("/price.html");
 }
 
 
 function openLogout() {
-
-    window.location.href = "/logout";
-
+    window.location.assign("/logout");
 }
 
 
@@ -540,7 +478,8 @@ function openLogout() {
 
 function showMessage(message) {
 
-    const status = document.getElementById("statusMessage");
+    const status =
+        document.getElementById("statusMessage");
 
     status.textContent = message;
     status.style.display = "block";
@@ -548,7 +487,6 @@ function showMessage(message) {
     setTimeout(function () {
         status.style.display = "none";
     }, 2500);
-
 }
 
 
@@ -559,26 +497,41 @@ async function loadDashboardStats() {
     try {
 
         const response = await fetch("/dashboard-stats", {
-
             method: "GET",
 
-            credentials: "include",
+            credentials: "same-origin",
 
             headers: {
                 "Accept": "application/json"
-            }
+            },
 
+            cache: "no-store"
         });
 
 
-        /* If server redirects to login */
+        /*
+         * Do not silently continue if the login session
+         * has expired.
+         */
+
+        if (response.status === 401 ||
+            response.status === 403) {
+
+            showMessage("Please login as farmer.");
+
+            setTimeout(function () {
+                window.location.assign("/farmer-login.html");
+            }, 1200);
+
+            return;
+        }
+
 
         if (response.redirected) {
 
-            window.location.href = response.url;
+            window.location.assign(response.url);
 
             return;
-
         }
 
 
@@ -589,43 +542,73 @@ async function loadDashboardStats() {
                 response.status
             );
 
-            showMessage("Unable to load dashboard data.");
+            showMessage(
+                "Unable to load dashboard data."
+            );
 
             return;
         }
 
 
-        const data = await response.json();
+        const contentType =
+            response.headers.get("content-type") || "";
+
+
+        if (!contentType.includes("application/json")) {
+
+            console.error(
+                "Expected JSON but received:",
+                contentType
+            );
+
+            showMessage(
+                "Invalid server response."
+            );
+
+            return;
+        }
+
+
+        const data =
+            await response.json();
 
 
         /* ================= UPDATE CARDS ================= */
 
-        document.getElementById("totalProducts").textContent =
+        document.getElementById(
+            "totalProducts"
+        ).textContent =
             data.totalProducts ?? 0;
 
 
-        document.getElementById("totalOrders").textContent =
+        document.getElementById(
+            "totalOrders"
+        ).textContent =
             data.totalOrders ?? 0;
 
 
-        document.getElementById("pendingOrders").textContent =
+        document.getElementById(
+            "pendingOrders"
+        ).textContent =
             data.pendingOrders ?? 0;
 
 
-        document.getElementById("deliveredOrders").textContent =
+        document.getElementById(
+            "deliveredOrders"
+        ).textContent =
             data.deliveredOrders ?? 0;
 
 
-        document.getElementById("totalSales").textContent =
+        document.getElementById(
+            "totalSales"
+        ).textContent =
             "₹" +
-            Number(data.totalSales ?? 0)
-                .toLocaleString("en-IN");
+            Number(
+                data.totalSales ?? 0
+            ).toLocaleString("en-IN");
 
-
-        /* ================= UPDATE CHART ================= */
 
         updateChart(data);
-
 
     } catch (error) {
 
@@ -634,10 +617,10 @@ async function loadDashboardStats() {
             error
         );
 
-        showMessage("Server connection error.");
-
+        showMessage(
+            "Server connection error."
+        );
     }
-
 }
 
 
@@ -668,8 +651,6 @@ function updateChart(data) {
         canvas.getContext("2d");
 
 
-    /* Destroy previous chart */
-
     if (salesChart) {
         salesChart.destroy();
     }
@@ -690,7 +671,8 @@ function updateChart(data) {
 
             datasets: [{
 
-                label: "FarmConnect Statistics",
+                label:
+                    "FarmConnect Statistics",
 
                 data: [
 
@@ -756,7 +738,6 @@ function updateChart(data) {
         }
 
     });
-
 }
 
 
@@ -783,3 +764,4 @@ setInterval(
 
 </body>
 </html>
+```
