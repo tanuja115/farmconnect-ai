@@ -1,200 +1,1240 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
 
-<title>FarmConnect AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FarmConnect AI | Direct From Farmers</title>
 
-<style>
+    <meta name="description"
+          content="FarmConnect AI connects farmers directly with customers for fresh agricultural products.">
 
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:Arial;
-}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
 
-body{
-background:linear-gradient(135deg,#43a047,#1b5e20);
-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-}
+        html {
+            scroll-behavior: smooth;
+        }
 
-.container{
-background:white;
-width:90%;
-max-width:900px;
-padding:50px;
-border-radius:20px;
-text-align:center;
-box-shadow:0 10px 30px rgba(0,0,0,.2);
-}
+        body {
+            background: #f7faf7;
+            color: #222;
+        }
 
-h1{
-font-size:50px;
-color:#2e7d32;
-margin-bottom:15px;
-}
+        /* ================= NAVBAR ================= */
 
-.subtitle{
-color:#555;
-margin-bottom:40px;
-}
+        nav {
+            width: 100%;
+            height: 72px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 7%;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        }
 
-.box{
-display:flex;
-gap:30px;
-justify-content:center;
-flex-wrap:wrap;
-}
+        .logo {
+            font-size: 25px;
+            font-weight: bold;
+            color: #2e7d32;
+            text-decoration: none;
+        }
 
-.card{
-width:300px;
-padding:30px;
-border-radius:15px;
-background:#f8f8f8;
-transition:.3s;
-}
+        .logo span {
+            color: #f9a825;
+        }
 
-.card:hover{
-transform:translateY(-5px);
-}
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
 
-.icon{
-font-size:60px;
-}
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: 0.3s;
+        }
 
-h2{
-margin:15px;
-}
+        .nav-links a:hover {
+            color: #2e7d32;
+        }
 
-p{
-color:#666;
-margin-bottom:20px;
-}
+        .nav-btn {
+            background: #2e7d32;
+            color: white !important;
+            padding: 10px 20px;
+            border-radius: 25px;
+        }
 
-button{
-padding:14px 30px;
-border:none;
-border-radius:10px;
-font-size:18px;
-cursor:pointer;
-color:white;
-}
+        .nav-btn:hover {
+            background: #1b5e20;
+        }
 
-.farmer{
-background:#2e7d32;
-}
+        /* ================= HERO ================= */
 
-.customer{
-background:#1565c0;
-}
+        .hero {
+            min-height: 650px;
+            display: flex;
+            align-items: center;
+            padding: 70px 7%;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(20,70,25,0.95),
+                    rgba(30,100,40,0.78),
+                    rgba(255,255,255,0.05)
+                ),
+                url("https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1800&q=85");
 
-button:hover{
-opacity:.9;
-}
+            background-size: cover;
+            background-position: center;
+        }
 
-</style>
+        .hero-content {
+            max-width: 650px;
+            color: white;
+        }
 
+        .hero-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 9px 18px;
+            border-radius: 30px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .hero h1 {
+            font-size: 58px;
+            line-height: 1.1;
+            margin-bottom: 22px;
+        }
+
+        .hero h1 span {
+            color: #ffd54f;
+        }
+
+        .hero p {
+            font-size: 19px;
+            line-height: 1.7;
+            margin-bottom: 30px;
+            color: #f1f8f1;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .primary-btn,
+        .secondary-btn {
+            border: none;
+            padding: 15px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .primary-btn {
+            background: #ffb300;
+            color: #222;
+        }
+
+        .primary-btn:hover {
+            background: #ffa000;
+            transform: translateY(-2px);
+        }
+
+        .secondary-btn {
+            background: white;
+            color: #2e7d32;
+        }
+
+        .secondary-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ================= STATS ================= */
+
+        .stats {
+            background: white;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            max-width: 1100px;
+            margin: -50px auto 0;
+            position: relative;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.10);
+            overflow: hidden;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 28px;
+            border-right: 1px solid #eee;
+        }
+
+        .stat:last-child {
+            border-right: none;
+        }
+
+        .stat h2 {
+            color: #2e7d32;
+            font-size: 30px;
+            margin-bottom: 5px;
+        }
+
+        .stat p {
+            color: #666;
+        }
+
+        /* ================= COMMON SECTION ================= */
+
+        section {
+            padding: 90px 7%;
+        }
+
+        .section-title {
+            text-align: center;
+            max-width: 700px;
+            margin: auto;
+        }
+
+        .section-title h2 {
+            font-size: 38px;
+            color: #1b5e20;
+            margin-bottom: 15px;
+        }
+
+        .section-title p {
+            color: #666;
+            line-height: 1.7;
+        }
+
+        /* ================= FEATURES ================= */
+
+        .features {
+            margin-top: 50px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 35px 28px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.06);
+            transition: 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+        }
+
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            margin: auto;
+            border-radius: 50%;
+            background: #e8f5e9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 34px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 12px;
+            color: #2e7d32;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* ================= AI SECTION ================= */
+
+        .ai-section {
+            background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+        }
+
+        .ai-container {
+            max-width: 1150px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .ai-text h2 {
+            font-size: 42px;
+            color: #1b5e20;
+            margin-bottom: 20px;
+        }
+
+        .ai-text p {
+            color: #555;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .ai-list {
+            list-style: none;
+        }
+
+        .ai-list li {
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .ai-list li::before {
+            content: "✓";
+            color: #2e7d32;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .ai-box {
+            background: white;
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.10);
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .ai-logo {
+            width: 55px;
+            height: 55px;
+            border-radius: 12px;
+            background: #2e7d32;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .ai-header h3 {
+            color: #222;
+        }
+
+        .ai-header p {
+            color: #777;
+            font-size: 13px;
+        }
+
+        .prediction {
+            background: #f7faf7;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 15px;
+        }
+
+        .prediction strong {
+            color: #2e7d32;
+        }
+
+        /* ================= HOW IT WORKS ================= */
+
+        .steps {
+            max-width: 1100px;
+            margin: 50px auto 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .step {
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 55px;
+            height: 55px;
+            margin: auto;
+            border-radius: 50%;
+            background: #2e7d32;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 18px;
+        }
+
+        .step h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .step p {
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* ================= LOGIN SECTION ================= */
+
+        .login-section {
+            background: #f1f8e9;
+        }
+
+        .login-cards {
+            max-width: 900px;
+            margin: 50px auto 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        }
+
+        .login-card .big-icon {
+            font-size: 65px;
+            margin-bottom: 15px;
+        }
+
+        .login-card h3 {
+            font-size: 27px;
+            margin-bottom: 10px;
+        }
+
+        .login-card p {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .login-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .login-btn,
+        .register-btn {
+            padding: 12px 25px;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .login-btn {
+            background: #2e7d32;
+            color: white;
+        }
+
+        .register-btn {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .customer-login {
+            background: #1565c0;
+        }
+
+        .customer-register {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        /* ================= CTA ================= */
+
+        .cta {
+            background: linear-gradient(135deg, #1b5e20, #2e7d32);
+            color: white;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .cta p {
+            margin-bottom: 28px;
+            color: #e8f5e9;
+        }
+
+        /* ================= FOOTER ================= */
+
+        footer {
+            background: #102d13;
+            color: white;
+            padding: 50px 7% 25px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 50px;
+        }
+
+        .footer-logo {
+            font-size: 25px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .footer-about {
+            color: #b7c9b8;
+            line-height: 1.7;
+            max-width: 450px;
+        }
+
+        footer h3 {
+            margin-bottom: 15px;
+        }
+
+        footer ul {
+            list-style: none;
+        }
+
+        footer li {
+            margin: 10px 0;
+            color: #b7c9b8;
+        }
+
+        footer a {
+            color: #b7c9b8;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: white;
+        }
+
+        .copyright {
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 40px;
+            padding-top: 20px;
+            color: #9db09e;
+            font-size: 14px;
+        }
+
+        /* ================= MOBILE ================= */
+
+        @media (max-width: 900px) {
+
+            .nav-links {
+                gap: 12px;
+            }
+
+            .hero h1 {
+                font-size: 45px;
+            }
+
+            .features {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .steps {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .ai-container {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 650px) {
+
+            nav {
+                height: auto;
+                padding: 18px 5%;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .hero {
+                min-height: 600px;
+                padding: 60px 6%;
+            }
+
+            .hero h1 {
+                font-size: 38px;
+            }
+
+            .hero p {
+                font-size: 16px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+                margin: 20px 6% 0;
+            }
+
+            .stat {
+                border-right: none;
+                border-bottom: 1px solid #eee;
+            }
+
+            .stat:last-child {
+                border-bottom: none;
+            }
+
+            section {
+                padding: 65px 6%;
+            }
+
+            .section-title h2,
+            .ai-text h2 {
+                font-size: 32px;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .steps {
+                grid-template-columns: 1fr;
+            }
+
+            .login-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-<div class="container">
+<!-- ================= NAVBAR ================= -->
 
-<h1>🌾 FarmConnect AI</h1>
+<nav>
 
-<p class="subtitle">
-Connect Farmers Directly With Customers
-</p>
+    <a href="#" class="logo">
+        🌾 Farm<span>Connect</span> AI
+    </a>
 
-<div class="box">
+    <div class="nav-links">
+        <a href="#home">Home</a>
+        <a href="#features">Features</a>
+        <a href="#ai">AI</a>
+        <a href="#how">How It Works</a>
+        <a href="#login" class="nav-btn">Get Started</a>
+    </div>
 
-<!-- FARMER -->
+</nav>
 
-<div class="card">
 
-<div class="icon">
-👨‍🌾
+<!-- ================= HERO ================= -->
+
+<section class="hero" id="home">
+
+    <div class="hero-content">
+
+        <div class="hero-badge">
+            🌱 Smart Agriculture Marketplace
+        </div>
+
+        <h1>
+            Fresh From The Farm,
+            <span>Direct To You.</span>
+        </h1>
+
+        <p>
+            FarmConnect AI connects farmers directly with customers,
+            making agricultural products easier to discover, sell,
+            and purchase with the power of AI.
+        </p>
+
+        <div class="hero-buttons">
+
+            <button class="primary-btn"
+                    onclick="scrollToLogin()">
+                Get Started →
+            </button>
+
+            <button class="secondary-btn"
+                    onclick="document.getElementById('features').scrollIntoView()">
+                Explore Features
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= STATS ================= -->
+
+<div class="stats">
+
+    <div class="stat">
+        <h2>🌾</h2>
+        <p>Farmer Friendly</p>
+    </div>
+
+    <div class="stat">
+        <h2>🤖</h2>
+        <p>AI Powered</p>
+    </div>
+
+    <div class="stat">
+        <h2>🛒</h2>
+        <p>Direct Marketplace</p>
+    </div>
+
 </div>
 
-<h2>
-Farmer
-</h2>
 
-<p>
-Register and manage products.
-</p>
+<!-- ================= FEATURES ================= -->
 
-<button class="farmer" onclick="farmerLogin()">
-    Login
-</button>
+<section id="features">
 
-<br><br>
+    <div class="section-title">
 
-<button class="farmer" onclick="farmerRegister()">
-    Register
-</button>
+        <h2>Everything You Need in One Platform</h2>
 
-</div>
+        <p>
+            FarmConnect AI combines marketplace features and
+            artificial intelligence to simplify the farming
+            product selling and buying experience.
+        </p>
 
-<!-- CUSTOMER -->
+    </div>
 
-<div class="card">
 
-<div class="icon">
-🛒
-</div>
+    <div class="features">
 
-<h2>
-Customer
-</h2>
+        <div class="feature-card">
 
-<p>
-Register first then order.
-</p>
+            <div class="feature-icon">
+                👨‍🌾
+            </div>
 
-<button class="customer" onclick="customerLogin()">
-    Login
-</button>
+            <h3>Farmer Marketplace</h3>
 
-<br><br>
+            <p>
+                Farmers can register, add products and connect
+                directly with customers.
+            </p>
 
-<button class="customer" onclick="customerRegister()">
-    Register
-</button>
+        </div>
 
-</div>
 
-</div>
+        <div class="feature-card">
 
-</div>
+            <div class="feature-icon">
+                🤖
+            </div>
+
+            <h3>AI Product Description</h3>
+
+            <p>
+                Generate attractive product descriptions using
+                AI instead of writing everything manually.
+            </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                📊
+            </div>
+
+            <h3>AI Price Prediction</h3>
+
+            <p>
+                Use AI-powered analysis to help farmers estimate
+                suitable product prices.
+            </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                🛒
+            </div>
+
+            <h3>Easy Shopping</h3>
+
+            <p>
+                Customers can browse agricultural products and
+                place orders through the marketplace.
+            </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                📦
+            </div>
+
+            <h3>Order Management</h3>
+
+            <p>
+                Farmers can view and manage customer orders
+                from their dashboard.
+            </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                💳
+            </div>
+
+            <h3>Online Payment</h3>
+
+            <p>
+                Payment integration provides a convenient way
+                for customers to complete purchases.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= AI SECTION ================= -->
+
+<section class="ai-section" id="ai">
+
+    <div class="ai-container">
+
+        <div class="ai-text">
+
+            <h2>
+                Smart Selling With AI 🤖
+            </h2>
+
+            <p>
+                FarmConnect AI helps farmers create better
+                product listings and make more informed pricing
+                decisions.
+            </p>
+
+            <ul class="ai-list">
+
+                <li>AI-generated product descriptions</li>
+
+                <li>AI-based price prediction</li>
+
+                <li>Faster product listing</li>
+
+                <li>Simple farmer-friendly interface</li>
+
+            </ul>
+
+        </div>
+
+
+        <div class="ai-box">
+
+            <div class="ai-header">
+
+                <div class="ai-logo">
+                    🤖
+                </div>
+
+                <div>
+                    <h3>FarmConnect AI</h3>
+                    <p>AI Product Assistant</p>
+                </div>
+
+            </div>
+
+
+            <div class="prediction">
+
+                <p>
+                    <strong>Product:</strong>
+                    Fresh Tomatoes
+                </p>
+
+                <br>
+
+                <p>
+                    <strong>AI Description:</strong>
+                    Fresh farm-grown tomatoes suitable
+                    for daily cooking and household use.
+                </p>
+
+            </div>
+
+
+            <div class="prediction">
+
+                <p>
+                    <strong>AI Price Prediction</strong>
+                </p>
+
+                <br>
+
+                <p>
+                    Suggested price based on available
+                    product information.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= HOW IT WORKS ================= -->
+
+<section id="how">
+
+    <div class="section-title">
+
+        <h2>How FarmConnect Works</h2>
+
+        <p>
+            A simple process for farmers and customers.
+        </p>
+
+    </div>
+
+
+    <div class="steps">
+
+        <div class="step">
+
+            <div class="step-number">
+                1
+            </div>
+
+            <h3>Register</h3>
+
+            <p>
+                Create a farmer or customer account.
+            </p>
+
+        </div>
+
+
+        <div class="step">
+
+            <div class="step-number">
+                2
+            </div>
+
+            <h3>List Products</h3>
+
+            <p>
+                Farmers add agricultural products.
+            </p>
+
+        </div>
+
+
+        <div class="step">
+
+            <div class="step-number">
+                3
+            </div>
+
+            <h3>Connect</h3>
+
+            <p>
+                Customers discover available products.
+            </p>
+
+        </div>
+
+
+        <div class="step">
+
+            <div class="step-number">
+                4
+            </div>
+
+            <h3>Order</h3>
+
+            <p>
+                Customers place orders directly.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= LOGIN SECTION ================= -->
+
+<section class="login-section" id="login">
+
+    <div class="section-title">
+
+        <h2>Join FarmConnect AI</h2>
+
+        <p>
+            Choose how you want to use the platform.
+        </p>
+
+    </div>
+
+
+    <div class="login-cards">
+
+        <!-- FARMER -->
+
+        <div class="login-card">
+
+            <div class="big-icon">
+                👨‍🌾
+            </div>
+
+            <h3>Farmer</h3>
+
+            <p>
+                Sell your agricultural products directly
+                to customers.
+            </p>
+
+            <div class="login-buttons">
+
+                <button class="login-btn"
+                        onclick="farmerLogin()">
+                    Login
+                </button>
+
+                <button class="register-btn"
+                        onclick="farmerRegister()">
+                    Register
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- CUSTOMER -->
+
+        <div class="login-card">
+
+            <div class="big-icon">
+                🛒
+            </div>
+
+            <h3>Customer</h3>
+
+            <p>
+                Discover fresh agricultural products
+                and place orders.
+            </p>
+
+            <div class="login-buttons">
+
+                <button class="login-btn customer-login"
+                        onclick="customerLogin()">
+                    Login
+                </button>
+
+                <button class="register-btn customer-register"
+                        onclick="customerRegister()">
+                    Register
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= CTA ================= -->
+
+<section class="cta">
+
+    <h2>Connecting Farmers With Customers 🌱</h2>
+
+    <p>
+        A smarter marketplace powered by technology and AI.
+    </p>
+
+    <button class="primary-btn"
+            onclick="scrollToLogin()">
+        Start Now →
+    </button>
+
+</section>
+
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+    <div class="footer-content">
+
+        <div>
+
+            <div class="footer-logo">
+                🌾 FarmConnect AI
+            </div>
+
+            <p class="footer-about">
+                An AI-powered agricultural marketplace designed
+                to connect farmers directly with customers and
+                simplify product selling and purchasing.
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <h3>Quick Links</h3>
+
+            <ul>
+
+                <li>
+                    <a href="#home">Home</a>
+                </li>
+
+                <li>
+                    <a href="#features">Features</a>
+                </li>
+
+                <li>
+                    <a href="#ai">AI</a>
+                </li>
+
+                <li>
+                    <a href="#how">How It Works</a>
+                </li>
+
+            </ul>
+
+        </div>
+
+
+        <div>
+
+            <h3>Platform</h3>
+
+            <ul>
+
+                <li>Farmer Marketplace</li>
+
+                <li>AI Assistance</li>
+
+                <li>Order Management</li>
+
+                <li>Customer Shopping</li>
+
+            </ul>
+
+        </div>
+
+    </div>
+
+
+    <div class="copyright">
+
+        © 2026 FarmConnect AI. All rights reserved.
+
+    </div>
+
+</footer>
+
+
+<!-- ================= JAVASCRIPT ================= -->
 
 <script>
 
+    function farmerLogin() {
+        window.location.href = "farmer-login.html";
+    }
 
-function farmerLogin(){
-    window.location.href = "farmer-login.html";
-}
+    function farmerRegister() {
+        window.location.href = "farmer-register.html";
+    }
 
-function farmerRegister(){
-    window.location.href = "farmer-register.html";
-}
+    function customerLogin() {
+        window.location.href = "customer-login.html";
+    }
 
-function customerLogin(){
-    window.location.href = "customer-login.html";
-}
+    function customerRegister() {
+        window.location.href = "customerRegister.html";
+    }
 
-function customerRegister(){
-    window.location.href = "customerRegister.html";
-}
+
+    function scrollToLogin() {
+        document.getElementById("login").scrollIntoView({
+            behavior: "smooth"
+        });
+    }
 
 </script>
 
 </body>
-
 </html>

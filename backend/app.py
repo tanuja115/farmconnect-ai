@@ -829,6 +829,104 @@ def farmer_reset_password():
 # PRODUCTS API
 # =========================================================
 
+@app.route("/add-product", methods=["POST"])
+def add_product():
+
+    if "farmer_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "Please login as farmer"
+        }), 401
+
+    try:
+
+        data = request.get_json() or {}
+
+        product_name = (
+            data.get("product_name")
+            or data.get("name")
+            or ""
+        ).strip()
+
+        quantity = data.get("quantity", 0)
+        price = data.get("price")
+        image = data.get("image", "")
+        description = data.get("description", "")
+
+        if not product_name:
+            return jsonify({
+                "success": False,
+                "message": "Product name is required"
+            }), 400
+
+        if price is None:
+            return jsonify({
+                "success": False,
+                "message": "Price is required"
+            }), 400
+
+        try:
+            quantity = float(quantity)
+            price = float(price)
+        except (TypeError, ValueError):
+            return jsonify({
+                "success": False,
+                "message": "Quantity and price must be valid numbers"
+            }), 400
+
+        if quantity < 0 or price < 0:
+            return jsonify({
+                "success": False,
+                "message": "Quantity and price cannot be negative"
+            }), 400
+
+        farmer_id = session["farmer_id"]
+
+        cursor = db.cursor()
+
+        cursor.execute("""
+            INSERT INTO products
+            (
+                product_name,
+                quantity,
+                price,
+                image,
+                description,
+                farmer_id
+            )
+            VALUES
+            (%s, %s, %s, %s, %s, %s)
+        """, (
+            product_name,
+            quantity,
+            price,
+            image,
+            description,
+            farmer_id
+        ))
+
+        db.commit()
+
+        product_id = cursor.lastrowid
+
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Product added successfully",
+            "product_id": product_id
+        })
+
+    except Exception as e:
+
+        print("Add product error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
 @app.route("/products", methods=["GET"])
 def products():
 
@@ -843,7 +941,8 @@ def products():
                 quantity,
                 price,
                 image,
-                description
+                description,
+                farmer_id
             FROM products
             ORDER BY id DESC
         """)
@@ -855,6 +954,57 @@ def products():
         return jsonify(data)
 
     except Exception as e:
+
+        print("Products error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+@app.route("/farmer-products", methods=["GET"])
+def farmer_products():
+
+    if "farmer_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "Please login as farmer"
+        }), 401
+
+    try:
+
+        farmer_id = session["farmer_id"]
+
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT
+                id,
+                product_name AS name,
+                quantity,
+                price,
+                image,
+                description
+            FROM products
+            WHERE farmer_id=%s
+            ORDER BY id DESC
+        """, (
+            farmer_id,
+        ))
+
+        data = cursor.fetchall()
+
+        cursor.close()
+
+        return jsonify({
+            "success": True,
+            "products": data
+        })
+
+    except Exception as e:
+
+        print("Farmer products error:", e)
 
         return jsonify({
             "success": False,
@@ -882,26 +1032,38 @@ def products_page():
 @app.route("/delete-product/<int:id>", methods=["DELETE"])
 def delete_product(id):
 
+    if "farmer_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "Please login as farmer"
+        }), 401
+
     try:
+
+        farmer_id = session["farmer_id"]
 
         cursor = db.cursor()
 
-        cursor.execute(
-            "DELETE FROM products WHERE id=%s",
-            (id,)
-        )
+        cursor.execute("""
+            DELETE FROM products
+            WHERE id=%s
+            AND farmer_id=%s
+        """, (
+            id,
+            farmer_id
+        ))
 
         db.commit()
 
-        updated = cursor.rowcount
+        deleted = cursor.rowcount
 
         cursor.close()
 
-        if updated == 0:
+        if deleted == 0:
 
             return jsonify({
                 "success": False,
-                "message": "Product not found"
+                "message": "Product not found or you do not own this product"
             }), 404
 
         return jsonify({
@@ -910,6 +1072,8 @@ def delete_product(id):
         })
 
     except Exception as e:
+
+        print("Delete product error:", e)
 
         return jsonify({
             "success": False,
@@ -926,25 +1090,18 @@ def order():
 
     try:
 
-        data = request.get_json()
+        data = request.get_json() or {}
 
-        if not data:
+        product_id = data.get("product_id")
+        product_name_from_request = data.get("product")
 
-            return jsonify({
-                "success": False,
-                "message": "No order data received"
-            }), 400
-
-        product = data.get("product")
         customer_name = data.get("customer_name")
         mobile = data.get("mobile")
         address = data.get("address")
         quantity = data.get("quantity")
-        price = data.get("price")
 
         if (
-            not product
-            or not customer_name
+            not customer_name
             or not mobile
             or not address
         ):
@@ -954,24 +1111,107 @@ def order():
                 "message": "Please fill all customer details"
             }), 400
 
-        if quantity is None or price is None:
+        if quantity is None:
 
             return jsonify({
                 "success": False,
-                "message": "Quantity and price are required"
+                "message": "Quantity is required"
             }), 400
 
-        quantity = float(quantity)
-        price = float(price)
-
-        if quantity <= 0 or price < 0:
+        try:
+            quantity = float(quantity)
+        except (TypeError, ValueError):
 
             return jsonify({
                 "success": False,
-                "message": "Invalid quantity or price"
+                "message": "Invalid quantity"
             }), 400
 
+        if quantity <= 0:
+
+            return jsonify({
+                "success": False,
+                "message": "Quantity must be greater than zero"
+            }), 400
+
+        cursor = db.cursor(dictionary=True)
+
+        # Preferred method:
+        # frontend sends product_id.
+        if product_id is not None:
+
+            try:
+                product_id = int(product_id)
+            except (TypeError, ValueError):
+
+                cursor.close()
+
+                return jsonify({
+                    "success": False,
+                    "message": "Invalid product ID"
+                }), 400
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    product_name,
+                    price,
+                    farmer_id
+                FROM products
+                WHERE id=%s
+            """, (
+                product_id,
+            ))
+
+        # Backward compatibility:
+        # old frontend may only send product name.
+        else:
+
+            if not product_name_from_request:
+
+                cursor.close()
+
+                return jsonify({
+                    "success": False,
+                    "message": "Product ID is required"
+                }), 400
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    product_name,
+                    price,
+                    farmer_id
+                FROM products
+                WHERE product_name=%s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (
+                product_name_from_request,
+            ))
+
+        product_data = cursor.fetchone()
+
+        if not product_data:
+
+            cursor.close()
+
+            return jsonify({
+                "success": False,
+                "message": "Product not found"
+            }), 404
+
+        product_id = product_data["id"]
+        product_name = product_data["product_name"]
+        price = float(product_data["price"])
+        farmer_id = product_data["farmer_id"]
+
+        # IMPORTANT:
+        # Price is taken from the database instead of trusting
+        # the price sent by the browser.
         total = price * quantity
+
+        cursor.close()
 
         cursor = db.cursor()
 
@@ -986,7 +1226,9 @@ def order():
                 total_price,
                 status,
                 payment_method,
-                payment_status
+                payment_status,
+                farmer_id,
+                product_id
             )
             VALUES
             (
@@ -998,10 +1240,12 @@ def order():
                 %s,
                 %s,
                 %s,
+                %s,
+                %s,
                 %s
             )
         """, (
-            product,
+            product_name,
             customer_name,
             mobile,
             address,
@@ -1009,7 +1253,9 @@ def order():
             total,
             "Pending",
             None,
-            "Pending"
+            "Pending",
+            farmer_id,
+            product_id
         ))
 
         db.commit()
@@ -1022,6 +1268,7 @@ def order():
             "success": True,
             "message": "Order Placed Successfully",
             "order_id": order_id,
+            "product_id": product_id,
             "total": total
         })
 
@@ -1049,6 +1296,8 @@ def order_details(order_id):
         cursor.execute("""
             SELECT
                 id,
+                product_id,
+                farmer_id,
                 product_name,
                 customer_name,
                 mobile,
@@ -1087,6 +1336,8 @@ def order_details(order_id):
 
     except Exception as e:
 
+        print("Order details error:", e)
+
         return jsonify({
             "success": False,
             "message": str(e)
@@ -1094,29 +1345,59 @@ def order_details(order_id):
 
 
 # =========================================================
-# GET ALL ORDERS
+# GET FARMER ORDERS
 # =========================================================
 
 @app.route("/orders", methods=["GET"])
 def get_orders():
 
+    if "farmer_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "Please login as farmer"
+        }), 401
+
     try:
+
+        farmer_id = session["farmer_id"]
 
         cursor = db.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT *
+            SELECT
+                id,
+                product_id,
+                farmer_id,
+                product_name,
+                customer_name,
+                mobile,
+                address,
+                quantity,
+                total_price,
+                status,
+                payment_method,
+                payment_status
             FROM orders
+            WHERE farmer_id=%s
             ORDER BY id DESC
-        """)
+        """, (
+            farmer_id,
+        ))
 
         data = cursor.fetchall()
 
         cursor.close()
 
+        for item in data:
+            item["total_price"] = float(
+                item["total_price"]
+            )
+
         return jsonify(data)
 
     except Exception as e:
+
+        print("Farmer orders error:", e)
 
         return jsonify({
             "success": False,
@@ -1125,22 +1406,21 @@ def get_orders():
 
 
 # =========================================================
-# UPDATE ORDER STATUS
+# UPDATE FARMER ORDER STATUS
 # =========================================================
 
 @app.route("/update-order/<int:order_id>", methods=["PUT"])
 def update_order(order_id):
 
+    if "farmer_id" not in session:
+        return jsonify({
+            "success": False,
+            "message": "Please login as farmer"
+        }), 401
+
     try:
 
-        data = request.get_json()
-
-        if not data:
-
-            return jsonify({
-                "success": False,
-                "message": "No data received"
-            }), 400
+        data = request.get_json() or {}
 
         status = data.get("status")
 
@@ -1151,15 +1431,35 @@ def update_order(order_id):
                 "message": "Status is required"
             }), 400
 
+        allowed_statuses = {
+            "Pending",
+            "Confirmed",
+            "Processing",
+            "Shipped",
+            "Delivered",
+            "Cancelled"
+        }
+
+        if status not in allowed_statuses:
+
+            return jsonify({
+                "success": False,
+                "message": "Invalid order status"
+            }), 400
+
+        farmer_id = session["farmer_id"]
+
         cursor = db.cursor()
 
         cursor.execute("""
             UPDATE orders
             SET status=%s
             WHERE id=%s
+            AND farmer_id=%s
         """, (
             status,
-            order_id
+            order_id,
+            farmer_id
         ))
 
         db.commit()
@@ -1172,7 +1472,7 @@ def update_order(order_id):
 
             return jsonify({
                 "success": False,
-                "message": "Order not found"
+                "message": "Order not found or you do not own this order"
             }), 404
 
         return jsonify({
@@ -1181,6 +1481,8 @@ def update_order(order_id):
         })
 
     except Exception as e:
+
+        print("Update order error:", e)
 
         return jsonify({
             "success": False,
@@ -1600,39 +1902,82 @@ def farmer_dashboard():
 @app.route("/dashboard-stats")
 def dashboard_stats():
 
+    if "farmer_id" not in session:
+
+        return jsonify({
+            "success": False,
+            "message": "Please login as farmer"
+        }), 401
+
     try:
 
+        farmer_id = session["farmer_id"]
+        farmer_name = session.get("farmer_name", "")
+
         cursor = db.cursor(dictionary=True)
+
+        # =====================================================
+        # TOTAL PRODUCTS OF LOGGED-IN FARMER
+        # =====================================================
 
         cursor.execute("""
             SELECT COUNT(*) AS total
             FROM products
-        """)
+            WHERE farmer_id=%s
+        """, (
+            farmer_id,
+        ))
 
         total_products = cursor.fetchone()["total"]
 
+        # =====================================================
+        # TOTAL ORDERS OF LOGGED-IN FARMER
+        # =====================================================
+
         cursor.execute("""
             SELECT COUNT(*) AS total
             FROM orders
-        """)
+            WHERE farmer_id=%s
+        """, (
+            farmer_id,
+        ))
 
         total_orders = cursor.fetchone()["total"]
 
+        # =====================================================
+        # PENDING ORDERS
+        # =====================================================
+
         cursor.execute("""
             SELECT COUNT(*) AS total
             FROM orders
-            WHERE status='Pending'
-        """)
+            WHERE farmer_id=%s
+            AND status='Pending'
+        """, (
+            farmer_id,
+        ))
 
         pending_orders = cursor.fetchone()["total"]
 
+        # =====================================================
+        # DELIVERED ORDERS
+        # =====================================================
+
         cursor.execute("""
             SELECT COUNT(*) AS total
             FROM orders
-            WHERE status='Delivered'
-        """)
+            WHERE farmer_id=%s
+            AND status='Delivered'
+        """, (
+            farmer_id,
+        ))
 
         delivered_orders = cursor.fetchone()["total"]
+
+        # =====================================================
+        # TOTAL SALES
+        # Only delivered orders are counted as sales.
+        # =====================================================
 
         cursor.execute("""
             SELECT
@@ -1641,14 +1986,19 @@ def dashboard_stats():
                     0
                 ) AS sales
             FROM orders
-            WHERE status='Delivered'
-        """)
+            WHERE farmer_id=%s
+            AND status='Delivered'
+        """, (
+            farmer_id,
+        ))
 
         total_sales = cursor.fetchone()["sales"]
 
         cursor.close()
 
         return jsonify({
+            "success": True,
+            "farmerName": farmer_name,
             "totalProducts": total_products,
             "totalOrders": total_orders,
             "pendingOrders": pending_orders,
@@ -1659,6 +2009,8 @@ def dashboard_stats():
         })
 
     except Exception as e:
+
+        print("Dashboard stats error:", e)
 
         return jsonify({
             "success": False,
